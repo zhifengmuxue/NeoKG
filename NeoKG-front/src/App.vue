@@ -199,24 +199,25 @@ const breadcrumbs = computed(() => {
         </div>
       </a-layout-header>
 
-      <!-- 内容区域 -->
+      <!-- 内容区域 - 修改这里，去除背景色和阴影 -->
       <a-layout-content 
         style="
           margin-top: 64px; 
           padding: 24px 16px; 
-          background: #f5f5f5; 
+          background: #fff; 
           min-height: calc(100vh - 64px - 70px);
         "
       >
-        <!-- 面包屑 -->
-        <a-breadcrumb style="margin-bottom: 16px; padding: 0 8px;">
-          <a-breadcrumb-item v-for="item in breadcrumbs" :key="item.title">
+        <!-- 面包屑 - 简化样式 -->
+        <div style="margin-bottom: 16px; padding: 0 8px; color: #666; font-size: 14px;">
+          <span v-for="(item, index) in breadcrumbs" :key="item.title">
             {{ item.title }}
-          </a-breadcrumb-item>
-        </a-breadcrumb>
+            <span v-if="index < breadcrumbs.length - 1" style="margin: 0 8px;">/</span>
+          </span>
+        </div>
 
-        <!-- 路由视图容器 -->
-        <div style="background: #fff; padding: 24px; border-radius: 6px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+        <!-- 路由视图容器 - 去除所有装饰 -->
+        <div style="background: #fff; padding: 0; border-radius: 0; box-shadow: none;">
           <router-view />
         </div>
       </a-layout-content>
@@ -338,5 +339,19 @@ const breadcrumbs = computed(() => {
 :deep(.ant-menu-inline-collapsed .ant-menu-item) {
   padding-left: 32px !important;
   text-align: left !important;
+}
+
+/* 移除所有可能的阴影和边框 */
+:deep(.ant-card) {
+  box-shadow: none !important;
+  border: none !important;
+}
+
+:deep(.ant-table-wrapper) {
+  box-shadow: none !important;
+}
+
+:deep(.ant-form) {
+  background: transparent !important;
 }
 </style>
