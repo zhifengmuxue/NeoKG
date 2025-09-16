@@ -1,0 +1,18 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: NeoKG-postgres
+    environment:
+      POSTGRES_DB: NeoKG
+      POSTGRES_USER: NeoKG
+      POSTGRES_PASSWORD: NeoKG
+    ports:
+      - "5432:5432"
+    volumes:
+      - NeoKG-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  NeoKG-postgres-data:
+    driver: local
+  NeoKG-redis-data:
+    driver: local
