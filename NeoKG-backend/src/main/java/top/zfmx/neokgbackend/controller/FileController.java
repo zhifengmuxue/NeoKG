@@ -30,27 +30,27 @@ public class FileController {
 
     @PostMapping("/upload")
     public Result<FileParseResult> uploadFile(@RequestParam("file") MultipartFile file) throws Exception {
-        try (InputStream inputStream = file.getInputStream()) {
-            AutoDetectParser parser = new AutoDetectParser();
-            BodyContentHandler handler = new BodyContentHandler(-1);
-            Metadata metadata = new Metadata();
+        InputStream inputStream = file.getInputStream();
+        AutoDetectParser parser = new AutoDetectParser();
+        BodyContentHandler handler = new BodyContentHandler(-1);
+        Metadata metadata = new Metadata();
 
-            parser.parse(inputStream, handler, metadata);
+        parser.parse(inputStream, handler, metadata);
 
-            // 构建 metadata Map
-            Map<String, String> metadataMap = new HashMap<>();
-            for (String name : metadata.names()) {
-                metadataMap.put(name, metadata.get(name));
-            }
-
-            // 构建返回对象
-            FileParseResult result = new FileParseResult();
-            result.setContent(handler.toString());
-            result.setMetadata(metadataMap);
-            result.setMimeType(tika.detect(file.getInputStream(), file.getOriginalFilename()));
-
-            return Result.ok(result);
+        // 构建 metadata Map
+        Map<String, String> metadataMap = new HashMap<>();
+        for (String name : metadata.names()) {
+            metadataMap.put(name, metadata.get(name));
         }
+
+        // 构建返回对象
+        FileParseResult result = new FileParseResult();
+        result.setContent(handler.toString());
+        result.setMetadata(metadataMap);
+        result.setMimeType(tika.detect(file.getInputStream(), file.getOriginalFilename()));
+
+        return Result.ok(result);
+
     }
 
 
