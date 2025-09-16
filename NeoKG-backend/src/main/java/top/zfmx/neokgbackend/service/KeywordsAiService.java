@@ -10,7 +10,7 @@ import dev.langchain4j.service.spring.AiService;
  **/
 @AiService
 public interface KeywordsAiService {
-    @SystemMessage("你是一个文本结构化专家。请根据以下文本内容，提取文档列表，并返回 JSON 格式，严格遵循 Document 实体类结构：\n" +
+    @SystemMessage("你是一个文本结构化专家。请根据以下文本内容，提取文档列表和文章的关键词(keyword)，并返回 JSON 格式，严格遵循 Document 实体类结构：\n" +
             "\n" +
             "Document 实体包含：\n" +
             "- id: 文档唯一编号（整数，从0开始）\n" +
@@ -30,6 +30,7 @@ public interface KeywordsAiService {
             "3. JSON 中不要包含多余字段。\n" +
             "4. 文档列表用数组表示，id 从 0 开始顺序编号。\n" +
             "5. 文本内容用 content 字段完整保留。\n" +
+            "6. 注意一定要存在keywords\n"+
             "请直接输出 JSON 数组，不要输出解释性文字。"+
             "\n" +
             "文本内容：\n"

@@ -44,7 +44,8 @@ public class DataImportServiceImpl implements DataImportService {
         String json = keywordsAiService.explain(textBuilder.toString());
 
         // 解析 JSON 为 Document 对象列表
-        return objectMapper.readValue(json, new TypeReference<List<Document>>() {});
+        return objectMapper.readValue(json, new TypeReference<>() {
+        });
     }
 
     @Override
