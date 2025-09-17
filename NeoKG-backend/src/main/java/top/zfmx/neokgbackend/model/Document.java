@@ -20,5 +20,6 @@ public class Document {
     private long id;
     private String title;
     private String content;
+    private String vector;
     private List<Keyword> keywords;
 }

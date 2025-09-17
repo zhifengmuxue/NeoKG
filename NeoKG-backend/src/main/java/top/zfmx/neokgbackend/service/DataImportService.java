@@ -1,6 +1,7 @@
 package top.zfmx.neokgbackend.service;
 
 import com.opencsv.exceptions.CsvValidationException;
+import org.apache.tika.exception.TikaException;
 import org.springframework.web.multipart.MultipartFile;
 import top.zfmx.neokgbackend.model.Document;
 
@@ -17,4 +18,5 @@ import java.util.List;
 public interface DataImportService {
     List<Document> parseCsvToDocuments(MultipartFile file) throws IOException, CsvValidationException;
     List<Document> parseMarkdownToDocuments(MultipartFile file) throws IOException;
+    List<Document> parseWordToDocuments(MultipartFile file) throws IOException, TikaException;
 }

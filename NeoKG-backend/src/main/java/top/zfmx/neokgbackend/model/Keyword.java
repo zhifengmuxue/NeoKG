@@ -18,6 +18,7 @@ import java.util.List;
 public class Keyword {
     private String tag;
     private String description;
+    private String vector;
     private List<String> alias;
     private DocumentRef ref;
 }
