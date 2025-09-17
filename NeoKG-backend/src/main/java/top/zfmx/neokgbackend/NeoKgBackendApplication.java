@@ -8,7 +8,6 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * @author lima
  */
 @SpringBootApplication
-@MapperScan("top.zfmx.neokgbackend.mapper")
 public class NeoKgBackendApplication {
 
     public static void main(String[] args) {

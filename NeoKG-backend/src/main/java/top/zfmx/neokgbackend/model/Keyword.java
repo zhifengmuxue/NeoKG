@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 /**
@@ -16,9 +17,12 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Keyword {
+    private long id;
     private String tag;
     private String description;
     private String vector;
     private List<String> alias;
     private DocumentRef ref;
+    private LocalDateTime createAt;
+    private LocalDateTime updateAt;
 }
