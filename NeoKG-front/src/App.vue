@@ -1,5 +1,5 @@
-<script setup>
-import { ref, computed, watch } from 'vue'
+<script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   UserOutlined,
@@ -12,16 +12,16 @@ import {
   RightOutlined,
   LeftOutlined
 } from '@ant-design/icons-vue'
+import { isDarkMode, toggleDarkMode, initTheme } from './stores/theme'
 
 const router = useRouter()
 const route = useRoute()
 
 const collapsed = ref(true) // 默认收起状态
-const darkTheme = ref(false)
 
 // 根据当前路由设置选中的菜单项
 const selectedKeys = computed(() => {
-  const routeMap = {
+  const routeMap: Record<string, string[]> = {
     '/query': ['1'],
     '/dashboard': ['2'],
     '/upload': ['3'],
@@ -32,7 +32,7 @@ const selectedKeys = computed(() => {
 
 // 计算主题相关的样式
 const themeStyles = computed(() => {
-  if (darkTheme.value) {
+  if (isDarkMode.value) {
     return {
       // 深色主题样式
       layoutBg: '#141414',
@@ -42,7 +42,7 @@ const themeStyles = computed(() => {
       footerBg: '#001529',
       textColor: '#ffffff',
       borderColor: '#303030',
-      menuTheme: 'dark'
+      menuTheme: 'dark' as const
     }
   } else {
     return {
@@ -54,37 +54,24 @@ const themeStyles = computed(() => {
       footerBg: '#ffffff',
       textColor: '#666',
       borderColor: '#f0f0f0',
-      menuTheme: 'light'
+      menuTheme: 'light' as const
     }
   }
 })
 
-// 监听主题变化，更新 body 背景色
-watch(darkTheme, (newVal) => {
-  if (newVal) {
-    document.body.style.backgroundColor = '#141414'
-    document.documentElement.style.backgroundColor = '#141414'
-  } else {
-    document.body.style.backgroundColor = '#ffffff'
-    document.documentElement.style.backgroundColor = '#ffffff'
-  }
-}, { immediate: true })
-
-const toggleCollapsed = () => {
+const toggleCollapsed = (): void => {
   collapsed.value = !collapsed.value
 }
 
-const toggleTheme = () => {
-  darkTheme.value = !darkTheme.value
-}
-
-const handleMenuClick = (key) => {
+const handleMenuClick = (key: string): void => {
   if (key === 'theme') {
-    toggleTheme()
+    console.log('点击主题切换按钮，当前状态:', isDarkMode.value)
+    toggleDarkMode()
+    console.log('切换后状态:', isDarkMode.value)
     return
   }
   
-  const routeMap = {
+  const routeMap: Record<string, string> = {
     '1': '/query',
     '2': '/dashboard',
     '3': '/upload',
@@ -94,6 +81,11 @@ const handleMenuClick = (key) => {
     router.push(routeMap[key])
   }
 }
+
+onMounted(() => {
+  initTheme()
+  console.log('App.vue mounted, 主题状态:', isDarkMode.value)
+})
 </script>
 
 <template>
@@ -119,10 +111,10 @@ const handleMenuClick = (key) => {
       <div class="sider-content">
         <!-- Logo区域 -->
         <div class="logo" :style="{ borderBottom: `1px solid ${themeStyles.borderColor}` }">
-          <h2 v-if="!collapsed" :style="{ color: darkTheme ? '#ffffff' : '#1890ff', textAlign: 'center', margin: '16px 0', fontWeight: 'bold' }">
+          <h2 v-if="!collapsed" :style="{ color: isDarkMode ? '#ffffff' : '#1890ff', textAlign: 'center', margin: '16px 0', fontWeight: 'bold' }">
             NeoKG
           </h2>
-          <h2 v-else :style="{ color: darkTheme ? '#ffffff' : '#1890ff', textAlign: 'center', margin: '16px 0', fontWeight: 'bold' }">
+          <h2 v-else :style="{ color: isDarkMode ? '#ffffff' : '#1890ff', textAlign: 'center', margin: '16px 0', fontWeight: 'bold' }">
             NK
           </h2>
         </div>
@@ -135,7 +127,7 @@ const handleMenuClick = (key) => {
             mode="inline"
             :inline-collapsed="collapsed"
             style="border-right: none;"
-            @click="({ key }) => handleMenuClick(key)"
+            @click="({ key }) => handleMenuClick(key as string)"
           >
             <a-menu-item key="1" class="menu-item">
               <search-outlined />
@@ -164,7 +156,7 @@ const handleMenuClick = (key) => {
               mode="inline"
               :inline-collapsed="collapsed"
               style="border-right: none;"
-              @click="({ key }) => handleMenuClick(key)"
+              @click="({ key }) => handleMenuClick(key as string)"
             >
               <a-menu-item key="settings" class="menu-item">
                 <setting-outlined />
@@ -172,7 +164,7 @@ const handleMenuClick = (key) => {
               </a-menu-item>
               <a-menu-item key="theme" class="menu-item">
                 <bulb-outlined />
-                <span>{{ darkTheme ? '浅色主题' : '深色主题' }}</span>
+                <span>{{ isDarkMode ? '浅色主题' : '深色主题' }}</span>
               </a-menu-item>
             </a-menu>
           </div>
@@ -181,7 +173,7 @@ const handleMenuClick = (key) => {
           <div 
             class="collapse-menu-item menu-item" 
             @click="toggleCollapsed"
-            :style="{ color: darkTheme ? '#ffffff' : 'rgba(0, 0, 0, 0.85)' }"
+            :style="{ color: isDarkMode ? '#ffffff' : 'rgba(0, 0, 0, 0.85)' }"
           >
             <right-outlined v-if="collapsed" />
             <left-outlined v-else />
@@ -197,7 +189,7 @@ const handleMenuClick = (key) => {
         :style="{
           background: themeStyles.headerBg,
           padding: 0,
-          boxShadow: darkTheme ? '0 1px 4px rgba(0,0,0,.3)' : '0 1px 4px rgba(0,21,41,.08)',
+          boxShadow: isDarkMode ? '0 1px 4px rgba(0,0,0,.3)' : '0 1px 4px rgba(0,21,41,.08)',
           position: 'fixed',
           top: 0,
           right: 0,
@@ -245,7 +237,7 @@ const handleMenuClick = (key) => {
 </template>
 
 <style scoped>
-/* 侧边栏样式 */
+/* 样式部分保持不变 */
 .sider-content {
   height: 100vh;
   display: flex;
@@ -276,7 +268,6 @@ const handleMenuClick = (key) => {
   padding-bottom: 10px;
 }
 
-/* 统一菜单项样式 */
 .menu-item {
   margin: 4px 8px !important;
   border-radius: 6px !important;
@@ -284,7 +275,6 @@ const handleMenuClick = (key) => {
   line-height: 40px !important;
 }
 
-/* 展开收起按钮样式 */
 .collapse-menu-item {
   display: flex;
   align-items: center;
@@ -302,7 +292,6 @@ const handleMenuClick = (key) => {
   opacity: 0.7;
 }
 
-/* 全局样式重置 */
 :deep(.ant-layout-sider-children) {
   height: 100vh;
   overflow: hidden;
@@ -329,7 +318,6 @@ const handleMenuClick = (key) => {
   text-align: left !important;
 }
 
-/* 移除所有可能的阴影和边框 */
 :deep(.ant-card) {
   box-shadow: none !important;
   border: none !important;
