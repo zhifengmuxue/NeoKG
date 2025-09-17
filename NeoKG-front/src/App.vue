@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   UserOutlined,
@@ -30,6 +30,46 @@ const selectedKeys = computed(() => {
   return routeMap[route.path] || ['2']
 })
 
+// 计算主题相关的样式
+const themeStyles = computed(() => {
+  if (darkTheme.value) {
+    return {
+      // 深色主题样式
+      layoutBg: '#141414',
+      siderBg: '#001529',
+      headerBg: '#001529',
+      contentBg: '#1f1f1f',
+      footerBg: '#001529',
+      textColor: '#ffffff',
+      borderColor: '#303030',
+      menuTheme: 'dark'
+    }
+  } else {
+    return {
+      // 浅色主题样式
+      layoutBg: '#ffffff',
+      siderBg: '#ffffff',
+      headerBg: '#ffffff',
+      contentBg: '#ffffff',
+      footerBg: '#ffffff',
+      textColor: '#666',
+      borderColor: '#f0f0f0',
+      menuTheme: 'light'
+    }
+  }
+})
+
+// 监听主题变化，更新 body 背景色
+watch(darkTheme, (newVal) => {
+  if (newVal) {
+    document.body.style.backgroundColor = '#141414'
+    document.documentElement.style.backgroundColor = '#141414'
+  } else {
+    document.body.style.backgroundColor = '#ffffff'
+    document.documentElement.style.backgroundColor = '#ffffff'
+  }
+}, { immediate: true })
+
 const toggleCollapsed = () => {
   collapsed.value = !collapsed.value
 }
@@ -38,11 +78,12 @@ const toggleTheme = () => {
   darkTheme.value = !darkTheme.value
 }
 
-const handleSignOut = () => {
-  console.log('用户登出')
-}
-
 const handleMenuClick = (key) => {
+  if (key === 'theme') {
+    toggleTheme()
+    return
+  }
+  
   const routeMap = {
     '1': '/query',
     '2': '/dashboard',
@@ -53,21 +94,10 @@ const handleMenuClick = (key) => {
     router.push(routeMap[key])
   }
 }
-
-// 面包屑导航
-const breadcrumbs = computed(() => {
-  const breadcrumbMap = {
-    '/dashboard': [{ title: '首页' }, { title: '仪表板' }],
-    '/query': [{ title: '首页' }, { title: 'Query' }],
-    '/upload': [{ title: '首页' }, { title: '上传文件' }],
-    '/settings': [{ title: '首页' }, { title: '设置' }]
-  }
-  return breadcrumbMap[route.path] || [{ title: '首页' }]
-})
 </script>
 
 <template>
-  <a-layout style="min-height: 100vh; background: #fff;">
+  <a-layout :style="{ minHeight: '100vh', background: themeStyles.layoutBg }">
     <!-- 侧边栏 -->
     <a-layout-sider 
       v-model:collapsed="collapsed" 
@@ -75,15 +105,24 @@ const breadcrumbs = computed(() => {
       collapsible
       :width="240"
       :collapsed-width="80"
-      style="background: #fff; border-right: 1px solid #f0f0f0; position: fixed; left: 0; top: 0; bottom: 0; height: 100vh; z-index: 1000;"
+      :style="{
+        background: themeStyles.siderBg,
+        borderRight: `1px solid ${themeStyles.borderColor}`,
+        position: 'fixed',
+        left: 0,
+        top: 0,
+        bottom: 0,
+        height: '100vh',
+        zIndex: 1000
+      }"
     >
       <div class="sider-content">
         <!-- Logo区域 -->
-        <div class="logo">
-          <h2 v-if="!collapsed" style="color: #1890ff; text-align: center; margin: 16px 0; font-weight: bold;">
+        <div class="logo" :style="{ borderBottom: `1px solid ${themeStyles.borderColor}` }">
+          <h2 v-if="!collapsed" :style="{ color: darkTheme ? '#ffffff' : '#1890ff', textAlign: 'center', margin: '16px 0', fontWeight: 'bold' }">
             NeoKG
           </h2>
-          <h2 v-else style="color: #1890ff; text-align: center; margin: 16px 0; font-weight: bold;">
+          <h2 v-else :style="{ color: darkTheme ? '#ffffff' : '#1890ff', textAlign: 'center', margin: '16px 0', fontWeight: 'bold' }">
             NK
           </h2>
         </div>
@@ -92,7 +131,7 @@ const breadcrumbs = computed(() => {
         <div class="main-menu">
           <a-menu
             :selectedKeys="selectedKeys"
-            theme="light"
+            :theme="themeStyles.menuTheme"
             mode="inline"
             :inline-collapsed="collapsed"
             style="border-right: none;"
@@ -116,12 +155,12 @@ const breadcrumbs = computed(() => {
         <!-- 底部区域 -->
         <div class="bottom-section">
           <!-- 分隔线 -->
-          <a-divider style="margin: 16px 12px;" />
+          <a-divider :style="{ margin: '16px 12px', borderColor: themeStyles.borderColor }" />
 
           <!-- 底部功能菜单 -->
           <div class="bottom-menu">
             <a-menu
-              theme="light"
+              :theme="themeStyles.menuTheme"
               mode="inline"
               :inline-collapsed="collapsed"
               style="border-right: none;"
@@ -131,19 +170,19 @@ const breadcrumbs = computed(() => {
                 <setting-outlined />
                 <span>设置</span>
               </a-menu-item>
-              <a-menu-item key="theme" class="menu-item" @click="toggleTheme">
+              <a-menu-item key="theme" class="menu-item">
                 <bulb-outlined />
-                <span>{{ darkTheme ? 'Light Theme' : 'Dark Theme' }}</span>
-              </a-menu-item>
-              <a-menu-item key="logout" class="menu-item" @click="handleSignOut">
-                <logout-outlined />
-                <span>Sign Out</span>
+                <span>{{ darkTheme ? '浅色主题' : '深色主题' }}</span>
               </a-menu-item>
             </a-menu>
           </div>
 
-          <!-- 展开/收起按钮 - 与菜单项完全一致的样式 -->
-          <div class="collapse-menu-item menu-item" @click="toggleCollapsed">
+          <!-- 展开/收起按钮 -->
+          <div 
+            class="collapse-menu-item menu-item" 
+            @click="toggleCollapsed"
+            :style="{ color: darkTheme ? '#ffffff' : 'rgba(0, 0, 0, 0.85)' }"
+          >
             <right-outlined v-if="collapsed" />
             <left-outlined v-else />
           </div>
@@ -153,83 +192,51 @@ const breadcrumbs = computed(() => {
 
     <!-- 主体内容区域 -->
     <a-layout :style="{ marginLeft: collapsed ? '80px' : '240px', transition: 'margin-left 0.2s' }">
-      <!-- 头部 - 固定位置 -->
+      <!-- 头部 -->
       <a-layout-header 
-        style="
-          background: #fff; 
-          padding: 0; 
-          box-shadow: 0 1px 4px rgba(0,21,41,.08);
-          position: fixed;
-          top: 0;
-          right: 0;
-          z-index: 999;
-        "
-        :style="{ 
+        :style="{
+          background: themeStyles.headerBg,
+          padding: 0,
+          boxShadow: darkTheme ? '0 1px 4px rgba(0,0,0,.3)' : '0 1px 4px rgba(0,21,41,.08)',
+          position: 'fixed',
+          top: 0,
+          right: 0,
+          zIndex: 999,
           left: collapsed ? '80px' : '240px',
           width: collapsed ? 'calc(100% - 80px)' : 'calc(100% - 240px)',
           transition: 'left 0.2s, width 0.2s'
         }"
       >
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 24px; height: 64px;">
-          <div style="color: #666; font-size: 16px; font-weight: 500;">
+          <div :style="{ color: themeStyles.textColor, fontSize: '16px', fontWeight: '500' }">
             欢迎使用 NeoKG 管理平台
-          </div>
-          
-          <div style="display: flex; align-items: center;">
-            <a-badge :count="5" style="margin-right: 20px;">
-              <a-button type="text" shape="circle">
-                <template #icon><user-outlined /></template>
-              </a-button>
-            </a-badge>
-            <a-dropdown>
-              <a-button type="text">
-                <user-outlined />
-                管理员
-              </a-button>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item key="profile">个人资料</a-menu-item>
-                  <a-menu-item key="settings">设置</a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item key="logout">退出登录</a-menu-item>
-                </a-menu>
-              </template>
-            </a-dropdown>
           </div>
         </div>
       </a-layout-header>
 
-      <!-- 内容区域 - 修改这里，去除背景色和阴影 -->
+      <!-- 内容区域 -->
       <a-layout-content 
-        style="
-          margin-top: 64px; 
-          padding: 24px 16px; 
-          background: #fff; 
-          min-height: calc(100vh - 64px - 70px);
-        "
+        :style="{
+          marginTop: '64px',
+          padding: '24px 16px',
+          background: themeStyles.contentBg,
+          minHeight: 'calc(100vh - 64px - 70px)'
+        }"
       >
-        <!-- 面包屑 - 简化样式 -->
-        <div style="margin-bottom: 16px; padding: 0 8px; color: #666; font-size: 14px;">
-          <span v-for="(item, index) in breadcrumbs" :key="item.title">
-            {{ item.title }}
-            <span v-if="index < breadcrumbs.length - 1" style="margin: 0 8px;">/</span>
-          </span>
-        </div>
-
-        <!-- 路由视图容器 - 去除所有装饰 -->
-        <div style="background: #fff; padding: 0; border-radius: 0; box-shadow: none;">
+        <div :style="{ background: themeStyles.contentBg, padding: 0, borderRadius: 0, boxShadow: 'none' }">
           <router-view />
         </div>
       </a-layout-content>
 
       <!-- 底部 -->
       <a-layout-footer 
-        style="
-          text-align: center; 
-          background: #fff; 
-          border-top: 1px solid #f0f0f0;
-          padding: 24px 16px;
-        "
+        :style="{
+          textAlign: 'center',
+          background: themeStyles.footerBg,
+          borderTop: `1px solid ${themeStyles.borderColor}`,
+          padding: '24px 16px',
+          color: themeStyles.textColor
+        }"
       >
         NeoKG Admin ©2024 Created by Your Team
       </a-layout-footer>
@@ -251,7 +258,6 @@ const breadcrumbs = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid #f0f0f0;
   flex-shrink: 0;
 }
 
@@ -264,7 +270,6 @@ const breadcrumbs = computed(() => {
 
 .bottom-section {
   flex-shrink: 0;
-  background: #fff;
 }
 
 .bottom-menu {
@@ -279,20 +284,7 @@ const breadcrumbs = computed(() => {
   line-height: 40px !important;
 }
 
-.menu-item:hover {
-  background-color: #f5f5f5 !important;
-}
-
-.menu-item.ant-menu-item-selected {
-  background-color: #e6f7ff !important;
-  color: #1890ff !important;
-}
-
-.menu-item.ant-menu-item-selected::after {
-  display: none;
-}
-
-/* 展开收起按钮样式 - 完全模拟菜单项 */
+/* 展开收起按钮样式 */
 .collapse-menu-item {
   display: flex;
   align-items: center;
@@ -301,15 +293,13 @@ const breadcrumbs = computed(() => {
   transition: all 0.3s;
   background: transparent !important;
   border: none !important;
-  color: rgba(0, 0, 0, 0.85);
   padding: 0 24px;
   margin-bottom: 16px !important;
   font-size: 14px;
 }
 
 .collapse-menu-item:hover {
-  background-color: #f5f5f5 !important;
-  color: #1890ff;
+  opacity: 0.7;
 }
 
 /* 全局样式重置 */
@@ -326,12 +316,10 @@ const breadcrumbs = computed(() => {
   display: none !important;
 }
 
-/* 头部固定时的滚动条处理 */
 :deep(.ant-layout-content) {
   overflow-y: auto;
 }
 
-/* 确保菜单项图标对齐 */
 :deep(.ant-menu-item) {
   padding-left: 24px !important;
 }
