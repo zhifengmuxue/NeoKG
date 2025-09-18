@@ -1,17 +1,25 @@
 export interface Node {
   id: string
   label: string
-  type: string
+  type?: string
+  size: number
+  color: string
   connections?: number
   properties?: Record<string, any>
 }
 
 export interface Edge {
-  id: string
+  id?: string
   source: string
   target: string
-  relation: string
+  relation?: string
   properties?: Record<string, any>
+}
+
+// API返回的图数据结构
+export interface ApiGraphData {
+  nodes: Node[]
+  edges: Edge[]
 }
 
 export interface Triple extends Edge {}
