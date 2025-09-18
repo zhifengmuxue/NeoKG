@@ -17,6 +17,8 @@ public class AiController {
 
     @RequestMapping(value = "/chat", produces = "text/html;charset=utf-8")
     public String chat(String message) {
-        return consultantService.explain(message);
+        String explain = consultantService.explain(message);
+        System.out.println(explain);
+        return explain;
     }
 }

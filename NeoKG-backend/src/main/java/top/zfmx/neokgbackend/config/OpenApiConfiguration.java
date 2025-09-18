@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
  * @version 0.0.1
  **/
 @Configuration
-public class OpenApiConfig {
+public class OpenApiConfiguration {
     @Bean
     public OpenAPI customOpenApi() {
         return new OpenAPI()

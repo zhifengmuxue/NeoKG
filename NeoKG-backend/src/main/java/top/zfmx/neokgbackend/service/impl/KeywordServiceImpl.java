@@ -2,7 +2,7 @@ package top.zfmx.neokgbackend.service.impl;
 
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
-import top.zfmx.neokgbackend.mapper.KeyWordMapper;
+import top.zfmx.neokgbackend.mapper.KeywordMapper;
 import top.zfmx.neokgbackend.model.Keyword;
 import top.zfmx.neokgbackend.service.KeywordService;
 
@@ -12,5 +12,5 @@ import top.zfmx.neokgbackend.service.KeywordService;
  **/
 @Service
 public class KeywordServiceImpl
-        extends ServiceImpl<KeyWordMapper, Keyword> implements KeywordService {
+        extends ServiceImpl<KeywordMapper, Keyword> implements KeywordService {
 }

@@ -16,7 +16,7 @@ import java.nio.file.Paths;
  * @version 0.0.1
  **/
 @SpringBootTest
-public class TestFileController {
+public class FileControllerTest {
 
     @Autowired
     private Tika tika;

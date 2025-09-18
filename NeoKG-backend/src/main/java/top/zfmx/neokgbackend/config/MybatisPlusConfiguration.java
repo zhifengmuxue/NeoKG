@@ -13,7 +13,7 @@ import org.springframework.context.annotation.Configuration;
  **/
 @Configuration
 @MapperScan({"top.zfmx.neokgbackend.mapper"})
-public class MybatisPlusConfig {
+public class MybatisPlusConfiguration {
 
     /**
      * 添加分页插件

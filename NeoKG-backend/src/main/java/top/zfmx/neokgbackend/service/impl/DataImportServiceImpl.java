@@ -40,7 +40,6 @@ public class DataImportServiceImpl implements DataImportService {
                 textBuilder.append(line).append("\n");
             }
         }
-
         // 调用 AiService 获取 JSON 文本
         String json = keywordsAiService.explain(textBuilder.toString());
 

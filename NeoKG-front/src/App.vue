@@ -230,7 +230,7 @@ onMounted(() => {
           color: themeStyles.textColor
         }"
       >
-        NeoKG Admin ©2024 Created by Your Team
+        NeoKG Admin ©2025 Created by NeoKG Team
       </a-layout-footer>
     </a-layout>
   </a-layout>

@@ -12,12 +12,14 @@ import java.time.LocalDateTime;
  * @version 0.0.1
  **/
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
 public class DocumentRef {
-    private long id;
-    private String documentId;
-    private long index;
+    private Long id;
+    private Long documentId;
+    private Long keywordId;
+    private Long refIndex;
     private LocalDateTime createAt;
     private LocalDateTime updateAt;
 }

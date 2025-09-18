@@ -14,5 +14,4 @@ services:
 volumes:
   NeoKG-postgres-data:
     driver: local
-  NeoKG-redis-data:
-    driver: local
+
