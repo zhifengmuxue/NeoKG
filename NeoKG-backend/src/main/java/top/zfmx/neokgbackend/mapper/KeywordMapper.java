@@ -1,9 +1,7 @@
 package top.zfmx.neokgbackend.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.*;
 import top.zfmx.neokgbackend.model.Keyword;
 
 import java.util.List;
@@ -18,4 +16,21 @@ public interface KeywordMapper
         extends BaseMapper<Keyword> {
     @Select("SELECT * FROM keyword ORDER BY vec <-> #{vec,typeHandler=top.zfmx.neokgbackend.handle.VectorTypeHandler} LIMIT #{limit}")
     List<Keyword> searchByVector(@Param("vec") Vector<Float> vec, @Param("limit") int limit);
+
+    @Select("SELECT id, name, description, alias, vec " +
+            "FROM keyword " +
+            "WHERE vec <-> #{embedding, typeHandler=top.zfmx.neokgbackend.handle.VectorTypeHandler} <= #{threshold} " +
+            "ORDER BY vec <-> #{embedding, typeHandler=top.zfmx.neokgbackend.handle.VectorTypeHandler} " +
+            "LIMIT 1")
+    Keyword findMostSimilar(
+            @Param("embedding") Vector<Float> embedding,
+            @Param("threshold") double threshold
+    );
+
+    @Select("SELECT * FROM keyword")
+    @Results({
+            @Result(column = "vec", property = "vec", typeHandler = top.zfmx.neokgbackend.handle.VectorTypeHandler.class)
+    })
+    List<Keyword> findAllKeywords();
+
 }

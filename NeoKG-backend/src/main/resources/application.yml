@@ -10,14 +10,17 @@ spring:
     username: NeoKG
     password: NeoKG
     driver-class-name: org.postgresql.Driver
-langchain4j:
-  open-ai:
-    chat-model:
-      api-key: ${OPENAI_API_KEY}
-      model-name: gpt-4o
-    embedding-model:
-      api-key: ${OPENAI_API_KEY}
-      model-name: text-embedding-3-small
+  ai:
+    dashscope:
+      chat:
+        api-key: ${BAILIAN_KEY}
+        options:
+          model: qwen3-max-preview
+      embedding:
+        api-key: ${BAILIAN_KEY}
+        options:
+          model: text-embedding-v4
+      api-key: ${BAILIAN_KEY}
 
 
 

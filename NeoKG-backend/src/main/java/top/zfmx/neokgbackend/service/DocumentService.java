@@ -18,5 +18,7 @@ public interface DocumentService
     /**
      * 上传文件并生成 Document 和 Keyword，持久化到数据库
      */
-    List<Document> parseAndSaveFile(MultipartFile file) throws IOException, TikaException, CsvValidationException;
+    List<Document> parseAndSaveFile(MultipartFile file, Double keywordSimilarRatio) throws IOException, TikaException, CsvValidationException;
+
+    List<Document> listDocumentsWithKeywords();
 }

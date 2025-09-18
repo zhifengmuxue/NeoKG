@@ -31,6 +31,6 @@ public class Document {
     private Vector<Float> vec;
     @TableField(exist = false)
     private List<Keyword> keywords;
-    private LocalDateTime createAt;
-    private LocalDateTime updateAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

@@ -30,6 +30,6 @@ public class Keyword {
     DocumentRef ref;
     @TableField(typeHandler = VectorTypeHandler.class)
     private Vector<Float> vec;
-    private LocalDateTime createAt;
-    private LocalDateTime updateAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

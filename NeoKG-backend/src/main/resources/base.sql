@@ -4,9 +4,9 @@ CREATE TABLE document
     id         BIGSERIAL PRIMARY KEY, -- 对应 Document.id
     title      TEXT NOT NULL,         -- Document.title
     content    TEXT,                  -- Document.content
-    vec        vector(1536),          -- Document embedding 向量
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    vec        vector(1024),          -- Document embedding 向量
+    created_at TIMESTAMP DEFAULT NOW(),
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
 -- 向量索引
@@ -19,9 +19,9 @@ CREATE TABLE keyword
     name        TEXT NOT NULL,                       -- Keyword.tag
     description TEXT,                                -- Keyword.description
     alias       TEXT[],                              -- Keyword.alias
-    vec      vector(1536),                        -- Keyword embedding
-    created_at  TIMESTAMPTZ DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ DEFAULT NOW()
+    vec      vector(1024),                        -- Keyword embedding
+    created_at  TIMESTAMP DEFAULT NOW(),
+    updated_at  TIMESTAMP DEFAULT NOW()
 );
 
 -- 向量索引
@@ -36,8 +36,8 @@ CREATE TABLE document_ref
     document_id BIGINT NOT NULL REFERENCES document (id) ON DELETE CASCADE, -- 被引用文档
     keyword_id BIGINT NOT NULL REFERENCES keyword (id) ON DELETE CASCADE,
     ref_index   BIGINT      DEFAULT 0,                                      -- 对应 Keyword.ref.index
-    created_at  TIMESTAMPTZ DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ DEFAULT NOW()
+    created_at  TIMESTAMP DEFAULT NOW(),
+    updated_at  TIMESTAMP DEFAULT NOW()
 );
 
 -- 索引

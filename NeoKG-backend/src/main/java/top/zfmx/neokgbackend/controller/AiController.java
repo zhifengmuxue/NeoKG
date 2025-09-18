@@ -3,7 +3,6 @@ package top.zfmx.neokgbackend.controller;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.publisher.Flux;
 import top.zfmx.neokgbackend.service.KeywordsAiService;
 
 /**
@@ -13,12 +12,10 @@ import top.zfmx.neokgbackend.service.KeywordsAiService;
 @RestController
 public class AiController {
     @Resource
-    private KeywordsAiService consultantService;
+    private KeywordsAiService keywordsAiServiceService;
 
     @RequestMapping(value = "/chat", produces = "text/html;charset=utf-8")
     public String chat(String message) {
-        String explain = consultantService.explain(message);
-        System.out.println(explain);
-        return explain;
+        return keywordsAiServiceService.explain(message);
     }
 }

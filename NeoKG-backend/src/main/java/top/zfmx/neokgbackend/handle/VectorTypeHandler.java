@@ -75,8 +75,11 @@ public class VectorTypeHandler extends BaseTypeHandler<Vector<Float>> {
      * @return 向量
      */
     private Vector<Float> parseVector(String value) {
-        if (value == null) {return null;}
-        value = value.replaceAll("[\\{\\}]", "");
+        if (value == null) {
+            return null;
+        }
+        // 去掉大括号和方括号
+        value = value.replaceAll("[\\[\\]\\{\\}]", "");
         String[] parts = value.split(",");
         Vector<Float> vector = new Vector<>();
         for (String part : parts) {
@@ -86,4 +89,5 @@ public class VectorTypeHandler extends BaseTypeHandler<Vector<Float>> {
         }
         return vector;
     }
+
 }

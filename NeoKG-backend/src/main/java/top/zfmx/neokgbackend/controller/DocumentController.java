@@ -29,7 +29,7 @@ public class DocumentController {
     @PostMapping("/upload")
     public Result<List<Document>> uploadFile(@RequestParam("file") MultipartFile file) {
         try {
-            List<Document> documents = documentService.parseAndSaveFile(file);
+            List<Document> documents = documentService.parseAndSaveFile(file,0.95);
             return Result.ok(documents);
         } catch (IOException | TikaException e) {
             return Result.error("文件解析失败: " + e.getMessage());

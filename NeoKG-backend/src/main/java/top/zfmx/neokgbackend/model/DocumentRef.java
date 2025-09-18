@@ -20,6 +20,6 @@ public class DocumentRef {
     private Long documentId;
     private Long keywordId;
     private Long refIndex;
-    private LocalDateTime createAt;
-    private LocalDateTime updateAt;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }
