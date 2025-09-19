@@ -348,7 +348,7 @@ const detectTheme = () => {
 // 响应式数据
 const fileList = ref([])
 const uploading = ref(false)
-const uploadUrl = '/api/file/upload'  // 修改为你的后端接口地址
+const uploadUrl = '/api/file/upload'  
 const detailModalVisible = ref(false)
 const selectedDocuments = ref([])
 

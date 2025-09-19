@@ -19,7 +19,7 @@ import java.util.List;
  * @version 0.0.1
  **/
 @RestController
-@RequestMapping("/file")
+@RequestMapping("/api/file")
 public class DocumentController {
 
 
@@ -27,9 +27,9 @@ public class DocumentController {
     private DocumentService documentService;
 
     @PostMapping("/upload")
-    public Result<List<Document>> uploadFile(@RequestParam("file") MultipartFile file) {
+    public Result<List<Document>> uploadFile(@RequestParam("file") MultipartFile file, @RequestParam("threshold") Double threshold) throws IOException {
         try {
-            List<Document> documents = documentService.parseAndSaveFile(file,0.95);
+            List<Document> documents = documentService.parseAndSaveFile(file,threshold);
             return Result.ok(documents);
         } catch (IOException | TikaException e) {
             return Result.error("文件解析失败: " + e.getMessage());
