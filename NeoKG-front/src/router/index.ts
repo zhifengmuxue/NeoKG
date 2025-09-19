@@ -22,6 +22,11 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/Upload.vue')
   },
   {
+    path: '/keywords',
+    name: 'Keywords',
+    component: () => import('@/views/Keywords.vue')
+  },
+  {
     path: '/settings',
     name: 'Settings',
     component: () => import('@/views/Settings.vue')

@@ -10,7 +10,8 @@ import {
   BulbOutlined,
   LogoutOutlined,
   RightOutlined,
-  LeftOutlined
+  LeftOutlined,
+  TagsOutlined
 } from '@ant-design/icons-vue'
 import { isDarkMode, toggleDarkMode, initTheme } from './stores/theme'
 
@@ -25,6 +26,7 @@ const selectedKeys = computed(() => {
     '/query': ['1'],
     '/dashboard': ['2'],
     '/upload': ['3'],
+    '/keywords': ['4'],
     '/settings': ['settings']
   }
   return routeMap[route.path] || ['2']
@@ -75,6 +77,7 @@ const handleMenuClick = (key: string): void => {
     '1': '/query',
     '2': '/dashboard',
     '3': '/upload',
+    '4': '/keywords',
     'settings': '/settings'
   }
   if (routeMap[key]) {
@@ -140,6 +143,10 @@ onMounted(() => {
             <a-menu-item key="3" class="menu-item">
               <upload-outlined />
               <span>上传文件</span>
+            </a-menu-item>
+            <a-menu-item key="4" class="menu-item">
+              <tags-outlined />
+              <span>关键词管理</span>
             </a-menu-item>
           </a-menu>
         </div>

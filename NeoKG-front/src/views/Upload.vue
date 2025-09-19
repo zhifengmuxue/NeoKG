@@ -11,14 +11,11 @@
     <!-- 上传区域 -->
     <div class="upload-section" :style="getCardStyle()">
       <a-upload-dragger
-        v-model:fileList="fileList"
         name="file"
         :multiple="true"
-        :action="uploadUrl"
         :beforeUpload="beforeUpload"
-        :onChange="handleChange"
-        :onRemove="handleRemove"
         :showUploadList="false"
+        :fileList="[]"
         :style="getDraggerStyle()"
       >
         <div class="upload-content">
@@ -35,7 +32,7 @@
       </a-upload-dragger>
     </div>
 
-    <!-- 文件列表 (移到前面) -->
+    <!-- 文件列表 -->
     <div class="file-list-section" :style="getCardStyle()">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
         <h3 :style="{ color: isDark ? '#ffffff' : '#333', margin: 0 }">文件列表</h3>
@@ -64,6 +61,7 @@
         :pagination="false"
         :scroll="{ y: 400 }"
         :style="getTableStyle()"
+        rowKey="uid"
       >
         <template #headerCell="{ column }">
           <span :style="{ color: isDark ? '#ffffff' : '#333' }">{{ column.title }}</span>
@@ -136,7 +134,7 @@
       </a-table>
     </div>
 
-    <!-- 上传配置和上传统计 (移到后面) -->
+    <!-- 上传配置和上传统计 -->
     <div class="config-section">
       <a-row :gutter="24">
         <a-col :span="12">
@@ -169,6 +167,9 @@
                 />
                 <div :style="{ color: isDark ? '#b3b3b3' : '#666', fontSize: '12px', marginTop: '4px' }">
                   当前值: {{ uploadConfig.threshold }}
+                </div>
+                <div :style="{ color: isDark ? '#1890ff' : '#1890ff', fontSize: '11px', marginTop: '2px' }">
+                  💡 较高的阈值(>0.8)会产生更精确但数量较少的关键词；较低的阈值(<0.5)会产生更多但可能不太精确的关键词
                 </div>
               </a-form-item>
               
@@ -264,7 +265,8 @@
                   上传时间: {{ item.uploadTime }} | 
                   状态: {{ item.status }} | 
                   大小: {{ formatFileSize(item.size) }} |
-                  实体数: {{ item.entitiesCount || 0 }}
+                  实体数: {{ item.entitiesCount || 0 }} |
+                  相似度阈值: {{ item.threshold || '未知' }}
                 </span>
               </template>
             </a-list-item-meta>
@@ -348,13 +350,12 @@ const detectTheme = () => {
 // 响应式数据
 const fileList = ref([])
 const uploading = ref(false)
-const uploadUrl = '/api/file/upload'  
 const detailModalVisible = ref(false)
 const selectedDocuments = ref([])
 
 const uploadConfig = ref({
   targetGraph: 'main',
-  threshold: 0.95,  // 新增相似度阈值配置
+  threshold: 0.95,
   parseMode: 'auto',
   dataProcessing: ['deduplicate', 'validate']
 })
@@ -362,17 +363,20 @@ const uploadConfig = ref({
 const uploadStats = ref({
   success: 0,
   failed: 0,
-  totalEntities: 0  // 新增总实体数统计
+  totalEntities: 0
 })
 
 const uploadHistory = ref([])
+
+// 用于生成唯一ID的计数器
+let fileIdCounter = 0
 
 // 计算属性
 const totalSize = computed(() => {
   return fileList.value.reduce((total, file) => total + (file.size || 0), 0)
 })
 
-// 表格列配置 - 新增实体数列
+// 表格列配置
 const columns = [
   {
     title: '文件名',
@@ -474,8 +478,31 @@ const getListItemStyle = () => ({
   borderBottomColor: isDark.value ? '#434343' : '#f0f0f0'
 })
 
-// 文件处理函数
+// 生成文件唯一标识
+const generateFileKey = (file) => {
+  return `${file.name}_${file.size}_${file.lastModified || Date.now()}`
+}
+
+// 修复重复文件问题的核心函数
 const beforeUpload = (file) => {
+  console.log('beforeUpload 被调用，文件:', file.name, '大小:', file.size)
+  
+  // 生成文件唯一标识
+  const fileKey = generateFileKey(file)
+  
+  // 检查文件是否已存在（更严格的检查）
+  const existingFile = fileList.value.find(item => {
+    const existingKey = generateFileKey(item.file)
+    return existingKey === fileKey
+  })
+  
+  if (existingFile) {
+    console.log('文件已存在，跳过添加:', file.name)
+    message.warning(`文件 ${file.name} 已存在，请勿重复添加`)
+    return false
+  }
+  
+  // 检查文件类型
   const allowedTypes = [
     'text/plain',
     'text/markdown',
@@ -498,40 +525,45 @@ const beforeUpload = (file) => {
     return false
   }
   
+  // 使用计数器生成唯一ID
+  fileIdCounter++
+  
   // 添加到文件列表
   const fileObj = {
-    uid: Date.now() + Math.random(),
+    uid: `file_${fileIdCounter}_${Date.now()}`,
     name: file.name,
     size: file.size,
     status: 'ready',
     progress: 0,
     file: file,
     entitiesCount: 0,
-    documents: null
+    documents: null,
+    fileKey: fileKey // 保存文件唯一标识
   }
   
+  console.log('添加文件到列表:', fileObj.name, '唯一ID:', fileObj.uid)
   fileList.value.push(fileObj)
+  
+  // 延迟一下确保UI更新
+  setTimeout(() => {
+    console.log('当前文件列表长度:', fileList.value.length)
+  }, 100)
+  
   return false // 阻止自动上传
 }
 
-const handleChange = (info) => {
-  // 处理文件状态变化
-}
-
-const handleRemove = (file) => {
-  const index = fileList.value.findIndex(item => item.uid === file.uid)
-  if (index > -1) {
-    fileList.value.splice(index, 1)
-  }
-}
-
 const removeFile = (index) => {
-  fileList.value.splice(index, 1)
+  console.log('removeFile 被调用，索引:', index)
+  if (index >= 0 && index < fileList.value.length) {
+    const removedFile = fileList.value.splice(index, 1)[0]
+    console.log('移除文件:', removedFile.name)
+  }
 }
 
 const clearAll = () => {
   fileList.value = []
   uploadStats.value = { success: 0, failed: 0, totalEntities: 0 }
+  fileIdCounter = 0 // 重置计数器
   message.info('文件列表已清空')
 }
 
@@ -555,40 +587,48 @@ const startUpload = async () => {
   message.success(`上传完成！成功 ${uploadStats.value.success} 个，失败 ${uploadStats.value.failed} 个，共解析 ${uploadStats.value.totalEntities} 个实体`)
 }
 
-// 修改上传单个文件的函数
+// 控制进度条在5秒内完成
 const uploadSingleFile = async (fileObj, index) => {
+  console.log('开始上传文件:', fileObj.name)
   fileObj.status = 'uploading'
   fileObj.progress = 0
   
-  // 模拟上传进度
+  // 控制进度条在5秒内完成
+  const startTime = Date.now()
+  const totalDuration = 5000 // 5秒
+  
   const progressInterval = setInterval(() => {
-    if (fileObj.progress < 90) {
-      fileObj.progress += Math.random() * 20
-    }
-  }, 200)
+    const elapsed = Date.now() - startTime
+    const progressPercentage = Math.min((elapsed / totalDuration) * 90, 90) // 最多到90%
+    fileObj.progress = Math.floor(progressPercentage)
+  }, 100) // 每100ms更新一次进度
   
   try {
-    // 创建FormData
+    // 创建FormData并添加threshold参数
     const formData = new FormData()
     formData.append('file', fileObj.file)
+    formData.append('threshold', uploadConfig.value.threshold.toString()) // 添加相似度阈值参数
+    
+    console.log('调用后端API上传文件:', fileObj.name, '相似度阈值:', uploadConfig.value.threshold)
     
     // 调用后端API
     const response = await axios.post('/api/file/upload', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
-      },
-      onUploadProgress: (progressEvent) => {
-        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
-        fileObj.progress = percentCompleted
       }
     })
     
+    console.log('上传响应:', response.data)
+    
+    // 清除进度定时器
     clearInterval(progressInterval)
+    
+    // 确保进度条完成
     fileObj.progress = 100
     fileObj.status = 'done'
     
-    // 处理后端返回的数据
-    if (response.data && response.data.code === 200) {
+    // 修正成功判断条件：支持 code: "SUCCESS" 或 code: 200
+    if (response.data && (response.data.code === "SUCCESS" || response.data.code === 200)) {
       const documents = response.data.data || []
       fileObj.documents = documents
       fileObj.entitiesCount = documents.length
@@ -598,22 +638,27 @@ const uploadSingleFile = async (fileObj, index) => {
       
       // 添加到历史记录
       uploadHistory.value.unshift({
-        id: Date.now(),
+        id: Date.now() + Math.random(),
         fileName: fileObj.name,
         uploadTime: new Date().toLocaleString(),
         status: '成功',
         size: fileObj.size,
         entitiesCount: documents.length,
-        documents: documents
+        documents: documents,
+        threshold: uploadConfig.value.threshold // 记录使用的阈值
       })
       
-      message.success(`${fileObj.name} 上传成功，解析出 ${documents.length} 个文档片段`)
+      message.success(`${fileObj.name} 上传成功，解析出 ${documents.length} 个文档片段 (阈值: ${uploadConfig.value.threshold})`)
     } else {
       throw new Error(response.data.message || '上传失败')
     }
     
   } catch (error) {
+    console.error('上传失败:', error)
+    
+    // 清除进度定时器
     clearInterval(progressInterval)
+    
     fileObj.status = 'error'
     fileObj.progress = 0
     uploadStats.value.failed++
@@ -622,13 +667,14 @@ const uploadSingleFile = async (fileObj, index) => {
     message.error(`${fileObj.name} 上传失败: ${errorMessage}`)
     
     uploadHistory.value.unshift({
-      id: Date.now(),
+      id: Date.now() + Math.random(),
       fileName: fileObj.name,
       uploadTime: new Date().toLocaleString(),
       status: '失败',
       size: fileObj.size,
       entitiesCount: 0,
-      error: errorMessage
+      error: errorMessage,
+      threshold: uploadConfig.value.threshold // 记录尝试使用的阈值
     })
   }
 }
