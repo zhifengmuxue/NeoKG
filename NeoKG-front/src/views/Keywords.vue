@@ -390,6 +390,12 @@ const keywordAPI = {
     }
   },
 
+  // 获取所有关键词列表
+  async getAllKeywords() {
+    const response = await axios.get(`${API_BASE_URL}`)
+    return response.data
+  },
+
   // 创建关键词
   async createKeyword(data) {
     const response = await axios.post(`${API_BASE_URL}`, data)
@@ -397,8 +403,8 @@ const keywordAPI = {
   },
 
   // 更新关键词
-  async updateKeyword(id, data) {
-    const response = await axios.put(`${API_BASE_URL}/${id}`, data)
+  async updateKeyword(keyword) {
+    const response = await axios.put(`${API_BASE_URL}`, keyword)
     return response.data
   },
 
@@ -411,7 +417,7 @@ const keywordAPI = {
   // 批量删除关键词
   async batchDeleteKeywords(ids) {
     const response = await axios.delete(`${API_BASE_URL}/batch`, {
-      data: { ids }
+      data: ids
     })
     return response.data
   }
@@ -530,9 +536,14 @@ const handleSubmit = async () => {
     }
 
     if (isEditing.value && currentKeyword.value) {
-      // 编辑关键词
+      // 编辑关键词 - 需要传递完整的关键词对象
+      const keywordData = {
+        ...currentKeyword.value,
+        ...submitData
+      }
+      
       try {
-        const result = await keywordAPI.updateKeyword(currentKeyword.value.id, submitData)
+        const result = await keywordAPI.updateKeyword(keywordData)
         
         if (result.code === 'SUCCESS') {
           message.success('关键词更新成功')
