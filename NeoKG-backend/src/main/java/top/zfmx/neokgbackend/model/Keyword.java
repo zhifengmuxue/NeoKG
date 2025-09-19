@@ -1,6 +1,7 @@
 package top.zfmx.neokgbackend.model;
 
 import com.baomidou.mybatisplus.annotation.TableField;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -20,6 +21,7 @@ import java.util.Vector;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
+@TableName(autoResultMap = true)
 public class Keyword {
     private Long id;
     private String name;

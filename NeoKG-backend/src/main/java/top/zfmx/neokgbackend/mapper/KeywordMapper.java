@@ -28,9 +28,6 @@ public interface KeywordMapper
     );
 
     @Select("SELECT * FROM keyword")
-    @Results({
-            @Result(column = "vec", property = "vec", typeHandler = top.zfmx.neokgbackend.handle.VectorTypeHandler.class)
-    })
     List<Keyword> findAllKeywords();
 
 }
