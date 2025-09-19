@@ -35,7 +35,108 @@
       </a-upload-dragger>
     </div>
 
-    <!-- 上传配置 -->
+    <!-- 文件列表 (移到前面) -->
+    <div class="file-list-section" :style="getCardStyle()">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <h3 :style="{ color: isDark ? '#ffffff' : '#333', margin: 0 }">文件列表</h3>
+        <a-space>
+          <a-button 
+            @click="clearAll" 
+            :disabled="fileList.length === 0"
+            :style="getButtonStyle()"
+          >
+            清空列表
+          </a-button>
+          <a-button 
+            type="primary" 
+            @click="startUpload" 
+            :loading="uploading"
+            :disabled="fileList.length === 0"
+          >
+            开始上传
+          </a-button>
+        </a-space>
+      </div>
+      
+      <a-table 
+        :dataSource="fileList" 
+        :columns="columns" 
+        :pagination="false"
+        :scroll="{ y: 400 }"
+        :style="getTableStyle()"
+      >
+        <template #headerCell="{ column }">
+          <span :style="{ color: isDark ? '#ffffff' : '#333' }">{{ column.title }}</span>
+        </template>
+        
+        <template #bodyCell="{ column, record, index }">
+          <template v-if="column.key === 'name'">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <component :is="getFileIcon(record.name)" :style="{ fontSize: '16px', color: getFileIconColor(record.name) }" />
+              <span :style="{ color: isDark ? '#ffffff' : '#333' }">{{ record.name }}</span>
+            </div>
+          </template>
+          
+          <template v-else-if="column.key === 'size'">
+            <span :style="{ color: isDark ? '#b3b3b3' : '#666' }">
+              {{ formatFileSize(record.size) }}
+            </span>
+          </template>
+          
+          <template v-else-if="column.key === 'status'">
+            <a-tag :color="getStatusColor(record.status)">
+              {{ getStatusText(record.status) }}
+            </a-tag>
+          </template>
+          
+          <template v-else-if="column.key === 'progress'">
+            <a-progress 
+              :percent="record.progress || 0" 
+              :size="'small'"
+              :stroke-color="isDark ? '#1890ff' : '#1890ff'"
+              :trail-color="isDark ? '#434343' : '#f5f5f5'"
+            />
+          </template>
+          
+          <template v-else-if="column.key === 'entities'">
+            <span :style="{ color: isDark ? '#1890ff' : '#1890ff', fontWeight: 'bold' }">
+              {{ record.entitiesCount || 0 }}
+            </span>
+          </template>
+          
+          <template v-else-if="column.key === 'action'">
+            <a-space>
+              <a-button 
+                size="small" 
+                @click="retryUpload(record, index)"
+                v-if="record.status === 'error'"
+                :style="getSmallButtonStyle()"
+              >
+                重试
+              </a-button>
+              <a-button 
+                size="small" 
+                @click="viewDetails(record)"
+                v-if="record.status === 'done' && record.documents"
+                :style="getSmallButtonStyle()"
+              >
+                查看详情
+              </a-button>
+              <a-button 
+                size="small" 
+                danger 
+                @click="removeFile(index)"
+                :style="getSmallButtonStyle()"
+              >
+                移除
+              </a-button>
+            </a-space>
+          </template>
+        </template>
+      </a-table>
+    </div>
+
+    <!-- 上传配置和上传统计 (移到后面) -->
     <div class="config-section">
       <a-row :gutter="24">
         <a-col :span="12">
@@ -53,6 +154,22 @@
                   <a-select-option value="test">测试图谱</a-select-option>
                   <a-select-option value="backup">备份图谱</a-select-option>
                 </a-select>
+              </a-form-item>
+              
+              <a-form-item label="相似度阈值">
+                <template #label>
+                  <span :style="{ color: isDark ? '#b3b3b3' : '#666' }">相似度阈值</span>
+                </template>
+                <a-slider 
+                  v-model:value="uploadConfig.threshold" 
+                  :min="0.1" 
+                  :max="1.0" 
+                  :step="0.05"
+                  :marks="{ 0.1: '0.1', 0.5: '0.5', 0.95: '0.95', 1.0: '1.0' }"
+                />
+                <div :style="{ color: isDark ? '#b3b3b3' : '#666', fontSize: '12px', marginTop: '4px' }">
+                  当前值: {{ uploadConfig.threshold }}
+                </div>
               </a-form-item>
               
               <a-form-item label="解析模式">
@@ -117,97 +234,16 @@
                   {{ uploadStats.failed }}
                 </span>
               </div>
+              <div class="stat-item" :style="getStatItemStyle()">
+                <span :style="{ color: isDark ? '#b3b3b3' : '#666' }">解析实体数</span>
+                <span :style="{ color: '#1890ff', fontWeight: 'bold' }">
+                  {{ uploadStats.totalEntities }}
+                </span>
+              </div>
             </div>
           </a-card>
         </a-col>
       </a-row>
-    </div>
-
-    <!-- 文件列表 -->
-    <div class="file-list-section" :style="getCardStyle()">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-        <h3 :style="{ color: isDark ? '#ffffff' : '#333', margin: 0 }">文件列表</h3>
-        <a-space>
-          <a-button 
-            @click="clearAll" 
-            :disabled="fileList.length === 0"
-            :style="getButtonStyle()"
-          >
-            清空列表
-          </a-button>
-          <a-button 
-            type="primary" 
-            @click="startUpload" 
-            :loading="uploading"
-            :disabled="fileList.length === 0"
-          >
-            开始上传
-          </a-button>
-        </a-space>
-      </div>
-      
-      <a-table 
-        :dataSource="fileList" 
-        :columns="columns" 
-        :pagination="false"
-        :scroll="{ y: 400 }"
-        :style="getTableStyle()"
-      >
-        <template #headerCell="{ column }">
-          <span :style="{ color: isDark ? '#ffffff' : '#333' }">{{ column.title }}</span>
-        </template>
-        
-        <template #bodyCell="{ column, record, index }">
-          <template v-if="column.key === 'name'">
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <component :is="getFileIcon(record.name)" :style="{ fontSize: '16px', color: getFileIconColor(record.name) }" />
-              <span :style="{ color: isDark ? '#ffffff' : '#333' }">{{ record.name }}</span>
-            </div>
-          </template>
-          
-          <template v-else-if="column.key === 'size'">
-            <span :style="{ color: isDark ? '#b3b3b3' : '#666' }">
-              {{ formatFileSize(record.size) }}
-            </span>
-          </template>
-          
-          <template v-else-if="column.key === 'status'">
-            <a-tag :color="getStatusColor(record.status)">
-              {{ getStatusText(record.status) }}
-            </a-tag>
-          </template>
-          
-          <template v-else-if="column.key === 'progress'">
-            <a-progress 
-              :percent="record.progress || 0" 
-              :size="'small'"
-              :stroke-color="isDark ? '#1890ff' : '#1890ff'"
-              :trail-color="isDark ? '#434343' : '#f5f5f5'"
-            />
-          </template>
-          
-          <template v-else-if="column.key === 'action'">
-            <a-space>
-              <a-button 
-                size="small" 
-                @click="retryUpload(record, index)"
-                v-if="record.status === 'error'"
-                :style="getSmallButtonStyle()"
-              >
-                重试
-              </a-button>
-              <a-button 
-                size="small" 
-                danger 
-                @click="removeFile(index)"
-                :style="getSmallButtonStyle()"
-              >
-                移除
-              </a-button>
-            </a-space>
-          </template>
-        </template>
-      </a-table>
     </div>
 
     <!-- 上传历史 -->
@@ -227,24 +263,63 @@
                 <span :style="{ color: isDark ? '#b3b3b3' : '#666' }">
                   上传时间: {{ item.uploadTime }} | 
                   状态: {{ item.status }} | 
-                  大小: {{ formatFileSize(item.size) }}
+                  大小: {{ formatFileSize(item.size) }} |
+                  实体数: {{ item.entitiesCount || 0 }}
                 </span>
               </template>
             </a-list-item-meta>
             <template #actions>
-              <a :style="{ color: isDark ? '#1890ff' : '#1890ff' }" @click="viewDetails(item)">查看详情</a>
+              <a :style="{ color: isDark ? '#1890ff' : '#1890ff' }" @click="viewHistoryDetails(item)">查看详情</a>
               <a :style="{ color: isDark ? '#ff4d4f' : '#ff4d4f' }" @click="deleteHistory(item)">删除</a>
             </template>
           </a-list-item>
         </template>
       </a-list>
     </div>
+
+    <!-- 文档详情弹窗 -->
+    <a-modal
+      v-model:open="detailModalVisible"
+      title="文档解析详情"
+      :width="800"
+      :footer="null"
+    >
+      <div v-if="selectedDocuments && selectedDocuments.length > 0">
+        <h4>解析结果 (共 {{ selectedDocuments.length }} 个文档片段)</h4>
+        <a-list
+          :dataSource="selectedDocuments"
+          :pagination="{ pageSize: 5 }"
+        >
+          <template #renderItem="{ item, index }">
+            <a-list-item>
+              <a-list-item-meta>
+                <template #title>
+                  文档片段 {{ index + 1 }}
+                </template>
+                <template #description>
+                  <div>
+                    <p><strong>内容:</strong> {{ item.content ? item.content.substring(0, 200) + (item.content.length > 200 ? '...' : '') : '无内容' }}</p>
+                    <p><strong>来源:</strong> {{ item.source || '未知' }}</p>
+                    <p><strong>类型:</strong> {{ item.type || '未知' }}</p>
+                    <p><strong>创建时间:</strong> {{ item.created || '未知' }}</p>
+                  </div>
+                </template>
+              </a-list-item-meta>
+            </a-list-item>
+          </template>
+        </a-list>
+      </div>
+      <div v-else>
+        <a-empty description="暂无解析数据" />
+      </div>
+    </a-modal>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { message } from 'ant-design-vue'
+import axios from 'axios'
 import {
   CloudUploadOutlined,
   FileTextOutlined,
@@ -273,80 +348,37 @@ const detectTheme = () => {
 // 响应式数据
 const fileList = ref([])
 const uploading = ref(false)
-const uploadUrl = '/api/upload'
+const uploadUrl = '/api/file/upload'  // 修改为你的后端接口地址
+const detailModalVisible = ref(false)
+const selectedDocuments = ref([])
 
 const uploadConfig = ref({
   targetGraph: 'main',
+  threshold: 0.95,  // 新增相似度阈值配置
   parseMode: 'auto',
   dataProcessing: ['deduplicate', 'validate']
 })
 
 const uploadStats = ref({
   success: 0,
-  failed: 0
+  failed: 0,
+  totalEntities: 0  // 新增总实体数统计
 })
 
-const uploadHistory = ref([
-  {
-    id: 1,
-    fileName: 'data.csv',
-    uploadTime: '2024-01-15 10:30:00',
-    status: '成功',
-    size: 1024 * 1024
-  },
-  {
-    id: 2,
-    fileName: 'document.pdf',
-    uploadTime: '2024-01-15 09:15:00',
-    status: '失败',
-    size: 2 * 1024 * 1024
-  }
-])
-
-const historyColumns = [
-  {
-    title: '文件名',
-    dataIndex: 'fileName',
-    key: 'fileName',
-  },
-  {
-    title: '上传时间',
-    dataIndex: 'uploadTime',
-    key: 'uploadTime',
-  },
-  {
-    title: '状态',
-    dataIndex: 'status',
-    key: 'status',
-  },
-  {
-    title: '实体数',
-    dataIndex: 'entitiesCount',
-    key: 'entitiesCount',
-  },
-  {
-    title: '关系数',
-    dataIndex: 'relationsCount',
-    key: 'relationsCount',
-  },
-  {
-    title: '操作',
-    key: 'action',
-  }
-]
+const uploadHistory = ref([])
 
 // 计算属性
 const totalSize = computed(() => {
   return fileList.value.reduce((total, file) => total + (file.size || 0), 0)
 })
 
-// 表格列配置
+// 表格列配置 - 新增实体数列
 const columns = [
   {
     title: '文件名',
     dataIndex: 'name',
     key: 'name',
-    width: '30%'
+    width: '25%'
   },
   {
     title: '大小',
@@ -364,7 +396,13 @@ const columns = [
     title: '进度',
     dataIndex: 'progress',
     key: 'progress',
-    width: '25%'
+    width: '20%'
+  },
+  {
+    title: '实体数',
+    dataIndex: 'entities',
+    key: 'entities',
+    width: '10%'
   },
   {
     title: '操作',
@@ -446,7 +484,8 @@ const beforeUpload = (file) => {
     'application/xml',
     'text/xml',
     'application/pdf',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/msword'
   ]
   
   if (!allowedTypes.includes(file.type)) {
@@ -466,7 +505,9 @@ const beforeUpload = (file) => {
     size: file.size,
     status: 'ready',
     progress: 0,
-    file: file
+    file: file,
+    entitiesCount: 0,
+    documents: null
   }
   
   fileList.value.push(fileObj)
@@ -490,7 +531,7 @@ const removeFile = (index) => {
 
 const clearAll = () => {
   fileList.value = []
-  uploadStats.value = { success: 0, failed: 0 }
+  uploadStats.value = { success: 0, failed: 0, totalEntities: 0 }
   message.info('文件列表已清空')
 }
 
@@ -501,7 +542,7 @@ const startUpload = async () => {
   }
   
   uploading.value = true
-  uploadStats.value = { success: 0, failed: 0 }
+  uploadStats.value = { success: 0, failed: 0, totalEntities: 0 }
   
   for (let i = 0; i < fileList.value.length; i++) {
     const file = fileList.value[i]
@@ -511,9 +552,10 @@ const startUpload = async () => {
   }
   
   uploading.value = false
-  message.success(`上传完成！成功 ${uploadStats.value.success} 个，失败 ${uploadStats.value.failed} 个`)
+  message.success(`上传完成！成功 ${uploadStats.value.success} 个，失败 ${uploadStats.value.failed} 个，共解析 ${uploadStats.value.totalEntities} 个实体`)
 }
 
+// 修改上传单个文件的函数
 const uploadSingleFile = async (fileObj, index) => {
   fileObj.status = 'uploading'
   fileObj.progress = 0
@@ -526,31 +568,49 @@ const uploadSingleFile = async (fileObj, index) => {
   }, 200)
   
   try {
-    // 模拟文件上传
-    await new Promise((resolve, reject) => {
-      setTimeout(() => {
-        // 随机成功/失败
-        if (Math.random() > 0.2) {
-          resolve()
-        } else {
-          reject(new Error('上传失败'))
-        }
-      }, 2000 + Math.random() * 3000)
+    // 创建FormData
+    const formData = new FormData()
+    formData.append('file', fileObj.file)
+    
+    // 调用后端API
+    const response = await axios.post('/api/file/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      },
+      onUploadProgress: (progressEvent) => {
+        const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total)
+        fileObj.progress = percentCompleted
+      }
     })
     
     clearInterval(progressInterval)
     fileObj.progress = 100
     fileObj.status = 'done'
-    uploadStats.value.success++
     
-    // 添加到历史记录
-    uploadHistory.value.unshift({
-      id: Date.now(),
-      fileName: fileObj.name,
-      uploadTime: new Date().toLocaleString(),
-      status: '成功',
-      size: fileObj.size
-    })
+    // 处理后端返回的数据
+    if (response.data && response.data.code === 200) {
+      const documents = response.data.data || []
+      fileObj.documents = documents
+      fileObj.entitiesCount = documents.length
+      
+      uploadStats.value.success++
+      uploadStats.value.totalEntities += documents.length
+      
+      // 添加到历史记录
+      uploadHistory.value.unshift({
+        id: Date.now(),
+        fileName: fileObj.name,
+        uploadTime: new Date().toLocaleString(),
+        status: '成功',
+        size: fileObj.size,
+        entitiesCount: documents.length,
+        documents: documents
+      })
+      
+      message.success(`${fileObj.name} 上传成功，解析出 ${documents.length} 个文档片段`)
+    } else {
+      throw new Error(response.data.message || '上传失败')
+    }
     
   } catch (error) {
     clearInterval(progressInterval)
@@ -558,18 +618,42 @@ const uploadSingleFile = async (fileObj, index) => {
     fileObj.progress = 0
     uploadStats.value.failed++
     
+    const errorMessage = error.response?.data?.message || error.message || '上传失败'
+    message.error(`${fileObj.name} 上传失败: ${errorMessage}`)
+    
     uploadHistory.value.unshift({
       id: Date.now(),
       fileName: fileObj.name,
       uploadTime: new Date().toLocaleString(),
       status: '失败',
-      size: fileObj.size
+      size: fileObj.size,
+      entitiesCount: 0,
+      error: errorMessage
     })
   }
 }
 
 const retryUpload = async (fileObj, index) => {
   await uploadSingleFile(fileObj, index)
+}
+
+// 查看文档详情
+const viewDetails = (fileObj) => {
+  if (fileObj.documents && fileObj.documents.length > 0) {
+    selectedDocuments.value = fileObj.documents
+    detailModalVisible.value = true
+  } else {
+    message.info('暂无解析数据')
+  }
+}
+
+const viewHistoryDetails = (item) => {
+  if (item.documents && item.documents.length > 0) {
+    selectedDocuments.value = item.documents
+    detailModalVisible.value = true
+  } else {
+    message.info('暂无解析数据')
+  }
 }
 
 // 工具函数
@@ -633,10 +717,6 @@ const getStatusText = (status) => {
     'error': '上传失败'
   }
   return textMap[status] || '未知'
-}
-
-const viewDetails = (item) => {
-  message.info(`查看文件详情: ${item.fileName}`)
 }
 
 const deleteHistory = (item) => {

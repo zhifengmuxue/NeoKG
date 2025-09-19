@@ -6,18 +6,13 @@
         <div class="filters-section">
           <h3>Filters</h3>
           <div class="filter-controls">
-            <button class="btn-icon" @click="refreshData" title="刷新数据">🔄</button>
-            <button class="btn-icon">+</button>
-            <button class="btn-icon">🔍</button>
-            <button class="btn-icon">⚗</button>
-            <button class="btn-icon">⚙</button>
+            <button class="btn-icon" @click="refreshData" title="刷新数据">↻</button>
           </div>
         </div>
 
         <!-- Entity Types -->
         <div class="filter-group">
           <div class="filter-header">
-            <span>📊</span>
             <span>Entity types</span>
             <span class="count">{{ selectedEntityCount }}/{{ entityTypes.length }}</span>
           </div>
@@ -25,7 +20,15 @@
             <div class="filter-item" v-for="entityType in entityTypes" :key="entityType.name">
               <input type="checkbox" :id="entityType.name" v-model="entityType.selected">
               <label :for="entityType.name">
-                <span class="color-indicator" :style="{ backgroundColor: entityType.color }"></span>
+                <span 
+                  class="color-indicator" 
+                  :class="{
+                    'keyword-gradient': entityType.name.includes('Keyword') || entityType.name.includes('关键词')
+                  }"
+                  :style="{ 
+                    backgroundColor: (entityType.name.includes('Keyword') || entityType.name.includes('关键词')) ? undefined : entityType.color 
+                  }"
+                ></span>
                 {{ entityType.name }}
               </label>
             </div>
@@ -35,7 +38,6 @@
         <!-- Relations -->
         <div class="filter-group">
           <div class="filter-header">
-            <span>🔗</span>
             <span>Relations</span>
             <span class="count">{{ selectedRelationCount }}/{{ relations.length }}</span>
           </div>
@@ -65,11 +67,11 @@
 
         <!-- 操作说明 -->
         <div class="help-section">
-          <h4>💡 操作说明</h4>
+          <h4>操作说明</h4>
           <ul class="help-list">
-            <li>🖱️ <strong>悬浮</strong>节点查看标签</li>
-            <li>🔍 <strong>拖拽</strong>和<strong>滚轮</strong>缩放图表</li>
-            <li>🔄 点击刷新按钮重新加载数据</li>
+            <li><strong>悬浮</strong>节点查看标签</li>
+            <li><strong>拖拽</strong>和<strong>滚轮</strong>缩放图表</li>
+            <li>点击刷新按钮重新加载数据</li>
           </ul>
         </div>
       </div>
@@ -119,6 +121,56 @@ interface EntityType {
 interface Relation {
   name: string;
   selected: boolean;
+}
+
+// 预定义的关键词颜色数组
+const keywordColors = [
+  '#ff6b6b', // 红色
+  '#4ecdc4', // 青色
+  '#45b7d1', // 蓝色
+  '#96ceb4', // 绿色
+  '#feca57', // 黄色
+  '#ff9ff3', // 粉色
+  '#54a0ff', // 亮蓝色
+  '#5f27cd', // 紫色
+  '#00d2d3', // 青绿色
+  '#ff9f43', // 橙色
+  '#ee5a6f', // 粉红色
+  '#0abde3', // 天蓝色
+  '#7bed9f', // 浅绿色
+  '#70a1ff', // 淡蓝色
+  '#5352ed', // 深紫色
+  '#ff6348', // 橙红色
+  '#2ed573', // 绿色
+  '#1e90ff', // 道奇蓝
+  '#ff7675', // 浅红色
+  '#74b9ff'  // 浅蓝色
+]
+
+// 生成随机颜色的函数
+const getRandomKeywordColor = (): string => {
+  return keywordColors[Math.floor(Math.random() * keywordColors.length)]
+}
+
+// 为节点分配颜色（保持一致性）
+const nodeColorMap = new Map<string, string>()
+
+const getNodeColor = (node: Node): string => {
+  // 如果是文档节点，使用固定颜色
+  if (node.id.startsWith('doc-')) {
+    return '#5470c6' // 蓝色
+  }
+  
+  // 如果是关键词节点，使用随机颜色（但保持一致性）
+  if (node.id.startsWith('kw-')) {
+    if (!nodeColorMap.has(node.id)) {
+      nodeColorMap.set(node.id, getRandomKeywordColor())
+    }
+    return nodeColorMap.get(node.id)!
+  }
+  
+  // 默认颜色
+  return node.color || '#91cc75'
 }
 
 // 响应式数据
@@ -218,14 +270,14 @@ const applyFilters = (): void => {
     filteredNodes = filteredNodes.filter(node => connectedNodeIds.has(node.id))
   }
   
-  // 转换为ECharts数据格式
+  // 转换为ECharts数据格式，使用随机颜色
   const chartData = filteredNodes.map((node: Node) => {
     return {
       id: node.id,
       name: node.label,
       symbolSize: node.size || 20,
       itemStyle: {
-        color: node.color || '#5470c6'
+        color: getNodeColor(node) // 使用新的颜色分配函数
       },
       category: node.id.startsWith('doc-') ? 0 : 1,
       label: {
@@ -380,7 +432,7 @@ const loadRealData = async (): Promise<void> => {
               name: node.label,
               symbolSize: node.size || 20,
               itemStyle: {
-                color: node.color || '#5470c6'
+                color: getNodeColor(node) // 使用新的颜色分配函数
               },
               category: node.id.startsWith('doc-') ? 0 : 1, // 文档和关键词分类
               label: {
@@ -409,7 +461,7 @@ const loadRealData = async (): Promise<void> => {
             {
               name: '关键词',
               itemStyle: {
-                color: '#91cc75'
+                color: '#91cc75' // 这里保留原来的颜色作为图例显示
               }
             }
           ],
@@ -518,9 +570,12 @@ const loadFallbackData = (): void => {
     ]
   }
   
+  // 保存原始数据用于筛选
+  originalGraphData.value = fallbackData
+  
   const option: EChartsOption = {
     title: {
-      text: '文档-关键词知识图谱 (备用数据)',
+      text: '文档-关键词知识图谱',
       textStyle: {
         color: isDarkMode.value ? '#ffffff' : '#333333',
         fontSize: 16
@@ -544,7 +599,7 @@ const loadFallbackData = (): void => {
             name: node.label,
             symbolSize: node.size,
             itemStyle: {
-              color: node.color
+              color: getNodeColor(node) // 使用新的颜色分配函数
             },
             category: node.id.startsWith('doc-') ? 0 : 1,
             label: {
@@ -618,6 +673,8 @@ const loadFallbackData = (): void => {
 // 刷新数据
 const refreshData = async (): Promise<void> => {
   if (myChart.value) {
+    // 清除颜色缓存，重新生成随机颜色
+    nodeColorMap.clear()
     myChart.value.showLoading()
     loadingMessage.value = '正在刷新数据...'
     chartLoaded.value = false
@@ -793,6 +850,35 @@ onUnmounted(() => {
   width: 12px;
   height: 12px;
   border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* 关键词彩色渐变背景 */
+.keyword-gradient {
+  background: linear-gradient(45deg, 
+    #ff6b6b 0%, 
+    #4ecdc4 14%, 
+    #45b7d1 28%, 
+    #96ceb4 42%, 
+    #feca57 57%, 
+    #ff9ff3 71%, 
+    #54a0ff 85%, 
+    #5f27cd 100%) !important;
+  background-size: 400% 400% !important;
+  animation: gradientShift 3s ease infinite !important;
+}
+
+/* 彩色渐变动画 */
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .view-options {
