@@ -6,6 +6,7 @@ import top.zfmx.neokgbackend.repository.DocumentNodeRepository;
 import top.zfmx.neokgbackend.repository.KeywordNodeRepository;
 import top.zfmx.neokgbackend.model.*;
 import top.zfmx.neokgbackend.service.GraphNeo4jService;
+import top.zfmx.neokgbackend.service.KeywordService;
 
 import java.util.*;
 
@@ -20,6 +21,8 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
     private DocumentNodeRepository documentNodeRepository;
     @Resource
     private KeywordNodeRepository keywordNodeRepository;
+    @Resource
+    private KeywordService keywordService;
 
     /**
      * 保存文档和关键词到图数据库
@@ -31,9 +34,24 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
         if (fullUpdate) {
             clearAll();
         }
-
+        List<Keyword> allKeywords = keywordService.findAllKeywords();
         Map<Long, KeywordNode> keywordCache = new HashMap<>();
 
+        // 先保存所有关键词（不管是否关联文档）
+        if (allKeywords != null) {
+            for (Keyword kw : allKeywords) {
+                KeywordNode kwNode = keywordNodeRepository.findByKeywordId(kw.getId())
+                        .orElseGet(() -> {
+                            KeywordNode newKw = new KeywordNode();
+                            newKw.setKeywordId(kw.getId());
+                            newKw.setName(kw.getName());
+                            return newKw;
+                        });
+                keywordCache.put(kw.getId(), keywordNodeRepository.save(kwNode));
+            }
+        }
+
+        // 再保存文档和关系
         for (Document doc : documents) {
             DocumentNode docNode = documentNodeRepository.findByDocId(doc.getId())
                     .orElseGet(() -> {
@@ -47,18 +65,9 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
             if (doc.getKeywords() != null) {
                 for (Keyword kw : doc.getKeywords()) {
                     KeywordNode kwNode = keywordCache.get(kw.getId());
-                    if (kwNode == null) {
-                        kwNode = keywordNodeRepository.findByKeywordId(kw.getId())
-                                .orElseGet(() -> {
-                                    KeywordNode newKw = new KeywordNode();
-                                    newKw.setKeywordId(kw.getId());
-                                    newKw.setName(kw.getName());
-                                    return keywordNodeRepository.save(newKw);
-                                });
-                        keywordCache.put(kw.getId(), kwNode);
+                    if (kwNode != null) {
+                        docNode.getKeywords().add(kwNode);
                     }
-
-                    docNode.getKeywords().add(kwNode);
                 }
             }
 
@@ -82,11 +91,13 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
     @Override
     public Map<String, Object> getDocKeywordGraph() {
         List<DocumentNode> docs = documentNodeRepository.findAll();
+        List<KeywordNode> allKeywords = keywordNodeRepository.findAll();
 
         List<GraphNode> nodes = new ArrayList<>();
         List<GraphEdge> edges = new ArrayList<>();
         Set<String> nodeIds = new HashSet<>();
 
+        // 遍历文档和它们的关键词
         for (DocumentNode doc : docs) {
             String docNodeId = "doc-" + doc.getDocId();
             if (nodeIds.add(docNodeId)) {
@@ -102,9 +113,18 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
             }
         }
 
+        // 补充独立关键词（未被任何文档引用）
+        for (KeywordNode kw : allKeywords) {
+            String kwNodeId = "kw-" + kw.getKeywordId();
+            if (nodeIds.add(kwNodeId)) {
+                nodes.add(new GraphNode(kwNodeId, kw.getName(), 20.0, "#91cc75"));
+            }
+        }
+
         Map<String, Object> graph = new HashMap<>();
         graph.put("nodes", nodes);
         graph.put("edges", edges);
         return graph;
     }
+
 }

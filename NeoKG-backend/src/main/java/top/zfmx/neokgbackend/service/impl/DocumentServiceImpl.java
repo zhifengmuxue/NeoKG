@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import top.zfmx.neokgbackend.enums.DocType;
+import top.zfmx.neokgbackend.enums.MatchMode;
 import top.zfmx.neokgbackend.mapper.DocumentMapper;
 import top.zfmx.neokgbackend.mapper.DocumentRefMapper;
 import top.zfmx.neokgbackend.mapper.KeywordMapper;
@@ -49,16 +50,14 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public List<Document> parseAndSaveFile(MultipartFile file, Double keywordSimilarRatio)
+    public List<Document> parseAndSaveFile(MultipartFile file, Double keywordSimilarRatio, MatchMode matchMode)
             throws IOException, TikaException, CsvValidationException {
 
         String filename = file.getOriginalFilename();
-        if (filename == null) {
-            throw new RuntimeException("文件名为空");
-        }
+        if (filename == null) throw new RuntimeException("文件名为空");
         DocType type = DocType.fromFilename(filename);
 
-        // 解析不同类型的文件
+        // 解析文件
         List<Document> documents;
         if (filename.endsWith(".csv")) {
             documents = dataImportService.parseCsvToDocuments(file);
@@ -70,13 +69,14 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
             throw new RuntimeException("不支持的文件类型");
         }
 
-        // 预先获取数据库中所有关键词
+        // 预加载所有关键词
         List<Keyword> allKeywords = keywordMapper.findAllKeywords();
 
         for (Document doc : documents) {
             Long docId = snowflake.nextId();
             doc.setId(docId);
             doc.setType(type);
+
             // 文档 embedding
             float[] docEmbedding = embeddingModel.embed(doc.getContent());
             List<Float> docEmbeddingList = new ArrayList<>(docEmbedding.length);
@@ -86,15 +86,19 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
 
             if (doc.getKeywords() != null) {
                 for (Keyword kw : doc.getKeywords()) {
+                    Keyword matchedKeyword = null;
 
-                    // 先做字符匹配
-                    Keyword matchedKeyword = KeywordMatcher.findByName(allKeywords, kw);
+                    if (matchMode == MatchMode.STRING || matchMode == MatchMode.BOTH) {
+                        // 字符串匹配
+                        matchedKeyword = KeywordMatcher.findByName(allKeywords, kw);
+                    }
 
-                    if (matchedKeyword == null) {
+                    if ((matchMode == MatchMode.SEMANTIC || matchMode == MatchMode.BOTH)
+                            && matchedKeyword == null) {
                         // 生成关键词 embedding
                         kw.generateEmbedding(embeddingModel);
 
-                        // 再做语义匹配
+                        // 语义匹配
                         matchedKeyword = KeywordMatcher.findMostSimilar(allKeywords, kw, kw.getVec(), keywordSimilarRatio);
                     }
 
@@ -106,7 +110,7 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
                         // 新建关键词
                         kw.setId(snowflake.nextId());
                         keywordMapper.insert(kw);
-                        allKeywords.add(kw); // 同步到内存列表
+                        allKeywords.add(kw);
                     }
 
                     // 建立 DocumentRef
@@ -122,6 +126,7 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
 
         return documents;
     }
+
 
 
 

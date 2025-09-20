@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.extension.service.IService;
 import com.opencsv.exceptions.CsvValidationException;
 import org.apache.tika.exception.TikaException;
 import org.springframework.web.multipart.MultipartFile;
+import top.zfmx.neokgbackend.enums.MatchMode;
 import top.zfmx.neokgbackend.model.Document;
 
 import java.io.IOException;
@@ -18,7 +19,7 @@ public interface DocumentService
     /**
      * 上传文件并生成 Document 和 Keyword，持久化到数据库
      */
-    List<Document> parseAndSaveFile(MultipartFile file, Double keywordSimilarRatio) throws IOException, TikaException, CsvValidationException;
+    List<Document> parseAndSaveFile(MultipartFile file, Double keywordSimilarRatio, MatchMode matchMode) throws IOException, TikaException, CsvValidationException;
 
     List<Document> listDocumentsWithKeywords();
 }
