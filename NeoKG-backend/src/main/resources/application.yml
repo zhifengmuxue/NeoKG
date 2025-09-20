@@ -21,6 +21,11 @@ spring:
         options:
           model: text-embedding-v4
       api-key: ${BAILIAN_KEY}
+  neo4j:
+    uri: bolt://localhost:7687
+    authentication:
+      username: neo4j
+      password: neo4j123
 
 #mybatis-plus:
 #  configuration:

@@ -10,8 +10,43 @@ services:
       - "5432:5432"
     volumes:
       - NeoKG-postgres-data:/var/lib/postgresql/data
-
+  # neo4j:
+  #   image: neo4j:5.11
+  #   container_name: NeoKG-neo4j
+  #   environment:
+  #     NEO4J_AUTH: neo4j/neo4j123  
+  #     NEO4JLABS_PLUGINS: '["apoc"]' 
+  #   ports:
+  #     - "7474:7474"  # HTTP 界面
+  #     - "7687:7687"  # Bolt 协议，用于应用访问
+  #   volumes:
+  #     - NeoKG-neo4j-data:/data
+  #     - NeoKG-neo4j-logs:/logs
+  #     - NeoKG-neo4j-import:/import
+  neo4j:
+    image: neo4j:5.11.0-enterprise
+    container_name: NeoKG-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/neo4j123
+      NEO4J_PLUGINS: '["apoc","graph-data-science"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*,gds.*"
+      NEO4J_dbms_security_procedures_allowlist: "apoc.*,gds.*"
+      NEO4J_ACCEPT_LICENSE_AGREEMENT: eval
+    ports:
+      - "7474:7474"
+      - "7687:7687"
+    volumes:
+      - NeoKG-neo4j-data:/data
+      - NeoKG-neo4j-logs:/logs
+      - NeoKG-neo4j-import:/import
 volumes:
   NeoKG-postgres-data:
     driver: local
+  NeoKG-neo4j-data:
+    driver: local
+  NeoKG-neo4j-logs:
+    driver: local
+  NeoKG-neo4j-import:
+    driver: local
+
 
