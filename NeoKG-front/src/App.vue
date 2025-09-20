@@ -61,6 +61,11 @@ const themeStyles = computed(() => {
   }
 })
 
+// 判断是否是 Query 页面
+const isQueryPage = computed(() => {
+  return route.path === '/query'
+})
+
 const toggleCollapsed = (): void => {
   collapsed.value = !collapsed.value
 }
@@ -130,7 +135,7 @@ onMounted(() => {
             mode="inline"
             :inline-collapsed="collapsed"
             style="border-right: none;"
-            @click="({ key }) => handleMenuClick(key as string)"
+            @click="(e: { key: string }) => handleMenuClick(e.key)"
           >
             <a-menu-item key="1" class="menu-item">
               <search-outlined />
@@ -163,7 +168,7 @@ onMounted(() => {
               mode="inline"
               :inline-collapsed="collapsed"
               style="border-right: none;"
-              @click="({ key }) => handleMenuClick(key as string)"
+              @click="(e: { key: string }) => handleMenuClick(e.key)"
             >
               <a-menu-item key="settings" class="menu-item">
                 <setting-outlined />
@@ -213,22 +218,31 @@ onMounted(() => {
         </div>
       </a-layout-header>
 
-      <!-- 内容区域 -->
+      <!-- 内容区域 - 根据页面类型调整样式 -->
       <a-layout-content 
         :style="{
           marginTop: '64px',
-          padding: '24px 16px',
+          padding: isQueryPage ? 0 : '24px 16px',
           background: themeStyles.contentBg,
-          minHeight: 'calc(100vh - 64px - 70px)'
+          minHeight: isQueryPage ? 'calc(100vh - 64px)' : 'calc(100vh - 64px - 70px)',
+          height: isQueryPage ? 'calc(100vh - 64px)' : 'auto',
+          overflow: isQueryPage ? 'hidden' : 'visible'
         }"
       >
-        <div :style="{ background: themeStyles.contentBg, padding: 0, borderRadius: 0, boxShadow: 'none' }">
+        <div :style="{ 
+          background: themeStyles.contentBg, 
+          padding: 0, 
+          borderRadius: 0, 
+          boxShadow: 'none',
+          height: isQueryPage ? '100%' : 'auto'
+        }">
           <router-view />
         </div>
       </a-layout-content>
 
-      <!-- 底部 -->
+      <!-- 底部 - Query 页面不显示 -->
       <a-layout-footer 
+        v-if="!isQueryPage"
         :style="{
           textAlign: 'center',
           background: themeStyles.footerBg,

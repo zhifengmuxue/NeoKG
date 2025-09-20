@@ -804,14 +804,154 @@ const getRowKey = (record) => {
   color: #1890ff;
 }
 
+/* === 修复 Checkbox 样式 - 重点修复位置和大小问题 === */
 /* 表格复选框样式 */
 :deep(.ant-checkbox-wrapper) {
   color: v-bind('themeStyles.textColor') !important;
 }
 
+/* Checkbox 基本状态 */
 :deep(.ant-checkbox-inner) {
-  background: v-bind('themeStyles.inputBg') !important;
+  background-color: v-bind('themeStyles.inputBg') !important;
   border-color: v-bind('themeStyles.borderColor') !important;
+  transition: all 0.3s ease !important;
+  width: 16px !important;
+  height: 16px !important;
+  border-radius: 2px !important;
+  position: relative !important;
+}
+
+/* Checkbox 悬浮状态 */
+:deep(.ant-checkbox:hover .ant-checkbox-inner) {
+  border-color: #1890ff !important;
+}
+
+/* Checkbox 选中状态 - 核心修复 */
+:deep(.ant-checkbox-checked .ant-checkbox-inner) {
+  background-color: #1890ff !important;
+  border-color: #1890ff !important;
+}
+
+/* Checkbox 选中状态下的勾选标记 - 修复位置和大小 */
+:deep(.ant-checkbox-checked .ant-checkbox-inner::after) {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  display: table !important;
+  width: 5.71428571px !important;
+  height: 9.14285714px !important;
+  border: 2px solid #ffffff !important;
+  border-top: 0 !important;
+  border-left: 0 !important;
+  transform: translate(-50%, -65%) rotate(45deg) scale(1) !important;
+  opacity: 1 !important;
+  transition: all 0.2s cubic-bezier(0.12, 0.4, 0.29, 1.46) 0.1s !important;
+  content: '' !important;
+}
+
+/* Checkbox 半选中状态 */
+:deep(.ant-checkbox-indeterminate .ant-checkbox-inner) {
+  background-color: #1890ff !important;
+  border-color: #1890ff !important;
+}
+
+:deep(.ant-checkbox-indeterminate .ant-checkbox-inner::after) {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 8px !important;
+  height: 8px !important;
+  background-color: #ffffff !important;
+  border: 0 !important;
+  transform: translate(-50%, -50%) scale(1) !important;
+  opacity: 1 !important;
+  content: '' !important;
+}
+
+/* Checkbox 禁用状态 */
+:deep(.ant-checkbox-wrapper-disabled .ant-checkbox-inner) {
+  background-color: v-bind('themeStyles.inputBg') !important;
+  border-color: v-bind('themeStyles.borderColor') !important;
+}
+
+:deep(.ant-checkbox-wrapper-disabled) {
+  color: v-bind('themeStyles.placeholderColor') !important;
+}
+
+/* 表格头部的全选 checkbox - 专门优化 */
+:deep(.ant-table-thead .ant-checkbox-wrapper) {
+  color: v-bind('themeStyles.textColor') !important;
+}
+
+:deep(.ant-table-thead .ant-checkbox-inner) {
+  background-color: v-bind('themeStyles.inputBg') !important;
+  border-color: v-bind('themeStyles.borderColor') !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+:deep(.ant-table-thead .ant-checkbox-checked .ant-checkbox-inner) {
+  background-color: #1890ff !important;
+  border-color: #1890ff !important;
+}
+
+:deep(.ant-table-thead .ant-checkbox-checked .ant-checkbox-inner::after) {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 5.71428571px !important;
+  height: 9.14285714px !important;
+  border: 2px solid #ffffff !important;
+  border-top: 0 !important;
+  border-left: 0 !important;
+  transform: translate(-50%, -65%) rotate(45deg) scale(1) !important;
+  opacity: 1 !important;
+  content: '' !important;
+}
+
+/* 表格行的复选框 - 专门优化 */
+:deep(.ant-table-tbody .ant-checkbox-wrapper) {
+  color: v-bind('themeStyles.textColor') !important;
+}
+
+:deep(.ant-table-tbody .ant-checkbox-inner) {
+  background-color: v-bind('themeStyles.inputBg') !important;
+  border-color: v-bind('themeStyles.borderColor') !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+
+:deep(.ant-table-tbody .ant-checkbox-checked .ant-checkbox-inner) {
+  background-color: #1890ff !important;
+  border-color: #1890ff !important;
+}
+
+:deep(.ant-table-tbody .ant-checkbox-checked .ant-checkbox-inner::after) {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 5.71428571px !important;
+  height: 9.14285714px !important;
+  border: 2px solid #ffffff !important;
+  border-top: 0 !important;
+  border-left: 0 !important;
+  transform: translate(-50%, -65%) rotate(45deg) scale(1) !important;
+  opacity: 1 !important;
+  content: '' !important;
+}
+
+/* 半选中状态的表格checkbox */
+:deep(.ant-table-thead .ant-checkbox-indeterminate .ant-checkbox-inner::after) {
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  width: 8px !important;
+  height: 8px !important;
+  background-color: #ffffff !important;
+  border: 0 !important;
+  transform: translate(-50%, -50%) scale(1) !important;
+  opacity: 1 !important;
+  content: '' !important;
 }
 
 /* 分页器样式 */
@@ -845,5 +985,24 @@ const getRowKey = (record) => {
 :deep(.ant-popover-arrow::before) {
   background: v-bind('themeStyles.modalBg') !important;
   border: 1px solid v-bind('themeStyles.borderColor') !important;
+}
+
+/* 下拉菜单样式 */
+:deep(.ant-select-dropdown) {
+  background-color: v-bind('themeStyles.modalBg') !important;
+  border-color: v-bind('themeStyles.borderColor') !important;
+}
+
+:deep(.ant-select-item) {
+  color: v-bind('themeStyles.textColor') !important;
+}
+
+:deep(.ant-select-item:hover) {
+  background-color: v-bind('themeStyles.tableRowHoverBg') !important;
+}
+
+:deep(.ant-select-item-option-selected) {
+  background-color: v-bind('isDarkMode ? "#1890ff" : "#e6f7ff"') !important;
+  color: v-bind('isDarkMode ? "#ffffff" : "#1890ff"') !important;
 }
 </style>

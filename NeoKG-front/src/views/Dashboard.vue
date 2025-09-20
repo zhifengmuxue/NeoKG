@@ -6,35 +6,44 @@
         <div class="stat-icon density-icon">🕸️</div>
         <div class="stat-content">
           <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">图谱密度</div>
-          <div class="stat-value" :style="{ color: isDark ? '#ffffff' : '#333' }">0.78</div>
+          <div class="stat-value" :style="{ color: isDark ? '#ffffff' : '#333' }">
+            {{ loading ? '加载中...' : formatDensity(metricsData.density) }}
+          </div>
         </div>
       </div>
       
       <div class="stat-item" :style="getStatItemStyle()">
         <div class="stat-icon connectivity-icon">🔗</div>
         <div class="stat-content">
-          <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">连通性</div>
-          <div class="stat-value" :style="{ color: isDark ? '#ffffff' : '#333' }">85.6%</div>
+          <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">连通组件</div>
+          <div class="stat-value" :style="{ color: isDark ? '#ffffff' : '#333' }">
+            {{ loading ? '加载中...' : getConnectivityCount(metricsData.connectivity) }}
+          </div>
         </div>
       </div>
       
       <div class="stat-item" :style="getStatItemStyle()">
         <div class="stat-icon isolated-icon">⚪</div>
         <div class="stat-content">
-          <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">孤立结点</div>
-          <div class="stat-value" :style="{ color: isDark ? '#ffffff' : '#333' }">142</div>
+          <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">孤立结点比例</div>
+          <div class="stat-value" :style="{ color: isDark ? '#ffffff' : '#333' }">
+            {{ loading ? '加载中...' : formatIsolatedRatio(metricsData.isolatedRatio) }}
+          </div>
         </div>
       </div>
       
       <div class="stat-item" :style="getStatItemStyle()">
         <div class="stat-icon file-icon">📁</div>
         <div class="stat-content">
-          <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">文件量</div>
-          <div class="stat-value" :style="{ color: isDark ? '#ffffff' : '#333' }">2,856</div>
+          <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">文件数量</div>
+          <div class="stat-value" :style="{ color: isDark ? '#ffffff' : '#333' }">
+            {{ fileLoading ? '加载中...' : fileCount }}
+          </div>
         </div>
       </div>
     </div>
     
+    <!-- 其他内容保持不变 -->
     <!-- 图表区域 -->
     <div class="charts-container">
       <div class="chart-section" :style="getChartSectionStyle()">
@@ -75,8 +84,137 @@ type EChartsOption = echarts.EChartsOption
 const fileChartRef = ref<HTMLDivElement>()
 const queryChartRef = ref<HTMLDivElement>()
 
-// 主题状态
+// 主题状态和数据状态
 const isDark = ref(false)
+const loading = ref(false)
+const fileLoading = ref(false) // 新增：文件数量加载状态
+const fileCount = ref<string>('0') // 新增：文件数量
+
+// 新增：图谱分析数据类型
+interface ConnectivityComponent {
+  componentId: number
+  size: number
+}
+
+interface MetricsData {
+  isolatedRatio: number
+  density: number
+  connectivity: ConnectivityComponent[]
+}
+
+interface ApiResponse {
+  code: string
+  message: string | null
+  data: MetricsData
+  timestamp: number
+}
+
+// 新增：文件数量API响应类型
+interface FileCountResponse {
+  code: string
+  message: string | null
+  data: string
+  timestamp: number
+}
+
+// 新增：图谱分析数据状态
+const metricsData = ref<MetricsData>({
+  isolatedRatio: 0,
+  density: 0,
+  connectivity: []
+})
+
+// 新增：API配置
+const API_BASE_URL = import.meta.env.DEV ? '/api/graph/analysis/metrics' : 'http://localhost:8080/api/graph/analysis/metrics'
+const FILE_COUNT_API_URL = import.meta.env.DEV ? '/api/file/num' : 'http://localhost:8080/api/file/num'
+
+// 新增：获取文件数量
+const fetchFileCount = async (): Promise<void> => {
+  fileLoading.value = true
+  try {
+    console.log('正在获取文件数量...')
+    const response = await fetch(FILE_COUNT_API_URL, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const result: FileCountResponse = await response.json()
+    console.log('文件数量获取成功:', result)
+    
+    if (result.code === 'SUCCESS') {
+      fileCount.value = result.data
+    } else {
+      throw new Error(result.message || '获取文件数量失败')
+    }
+  } catch (error) {
+    console.error('获取文件数量失败:', error)
+    // 使用默认值
+    fileCount.value = '2,856'
+  } finally {
+    fileLoading.value = false
+  }
+}
+
+// 新增：获取图谱分析数据
+const fetchMetrics = async (): Promise<void> => {
+  loading.value = true
+  try {
+    console.log('正在获取图谱分析数据...')
+    const response = await fetch(API_BASE_URL, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const result: ApiResponse = await response.json()
+    console.log('图谱分析数据获取成功:', result)
+    
+    if (result.code === 'SUCCESS') {
+      metricsData.value = result.data
+    } else {
+      throw new Error(result.message || '获取数据失败')
+    }
+  } catch (error) {
+    console.error('获取图谱分析数据失败:', error)
+    
+    // 使用模拟数据
+    metricsData.value = {
+      isolatedRatio: 0.0,
+      density: 0.08695652173913043,
+      connectivity: [
+        { componentId: 2, size: 21 },
+        { componentId: 0, size: 2 }
+      ]
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+// 新增：格式化函数
+const formatDensity = (density: number): string => {
+  return (density * 100).toFixed(1) + '%'
+}
+
+const getConnectivityCount = (connectivity: ConnectivityComponent[]): string => {
+  if (!connectivity || connectivity.length === 0) return '0个'
+  return `${connectivity.length}个`
+}
+
+const formatIsolatedRatio = (ratio: number): string => {
+  return (ratio * 100).toFixed(1) + '%'
+}
 
 // 检测主题的函数
 const detectTheme = () => {
@@ -415,6 +553,10 @@ const reinitCharts = () => {
 onMounted(() => {
   // 初始检测主题
   detectTheme()
+  
+  // 获取图谱分析数据和文件数量
+  fetchMetrics()
+  fetchFileCount() // 新增：获取文件数量
   
   // 延迟初始化，确保DOM已渲染
   setTimeout(() => {

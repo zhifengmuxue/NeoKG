@@ -408,7 +408,7 @@ const loadRealData = async (): Promise<void> => {
 
     const option: EChartsOption = {
       title: {
-        text: '文档-关键词知识图谱',
+        text: '',
         textStyle: {
           color: isDarkMode.value ? '#ffffff' : '#333333',
           fontSize: 16
@@ -707,11 +707,11 @@ onUnmounted(() => {
 
 <style scoped>
 .query-page {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
+  height: 100%;
+  width: 100%;
   background: #f8fafc;
   transition: background-color 0.3s ease;
+  overflow: hidden;
 }
 
 .query-page.dark-mode {
@@ -720,17 +720,22 @@ onUnmounted(() => {
 
 .main-content {
   display: flex;
-  flex: 1;
+  height: 100%;
+  width: 100%;
   overflow: hidden;
 }
 
 .sidebar {
-  width: 300px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
   background: white;
   border-right: 1px solid #e2e8f0;
   padding: 1rem;
   overflow-y: auto;
   transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar.dark-sidebar,
@@ -744,12 +749,13 @@ onUnmounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 0.8rem;
+  flex-shrink: 0;
 }
 
 .filters-section h3 {
   margin: 0;
-  font-size: 1.125rem;
+  font-size: 0.9rem;
   font-weight: 600;
   color: inherit;
 }
@@ -769,13 +775,14 @@ onUnmounted(() => {
   justify-content: center;
   background: none;
   border: none;
-  padding: 0.5rem;
+  padding: 0.4rem;
   cursor: pointer;
   color: #64748b;
   border-radius: 0.375rem;
   transition: all 0.3s ease;
-  min-width: 32px;
-  min-height: 32px;
+  min-width: 28px;
+  min-height: 28px;
+  font-size: 0.8rem;
 }
 
 .btn-icon:hover {
@@ -792,15 +799,17 @@ onUnmounted(() => {
 }
 
 .filter-group {
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.8rem;
+  flex-shrink: 0;
 }
 
 .filter-header {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
   font-weight: 500;
+  font-size: 0.8rem;
   color: inherit;
 }
 
@@ -811,7 +820,7 @@ onUnmounted(() => {
 .count {
   margin-left: auto;
   color: #64748b;
-  font-size: 0.875rem;
+  font-size: 0.7rem;
 }
 
 .dark-mode .count {
@@ -819,23 +828,24 @@ onUnmounted(() => {
 }
 
 .filter-items {
-  padding-left: 1.5rem;
+  padding-left: 0.8rem;
 }
 
 .filter-item {
   display: flex;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.3rem;
 }
 
 .filter-item label {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-left: 0.5rem;
+  gap: 0.4rem;
+  margin-left: 0.4rem;
   cursor: pointer;
   color: inherit;
   transition: color 0.3s ease;
+  font-size: 0.75rem;
 }
 
 .dark-mode .filter-item label {
@@ -847,8 +857,8 @@ onUnmounted(() => {
 }
 
 .color-indicator {
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -882,9 +892,10 @@ onUnmounted(() => {
 }
 
 .view-options {
-  margin-top: 2rem;
-  padding-top: 1rem;
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
   border-top: 1px solid #e2e8f0;
+  flex-shrink: 0;
 }
 
 .dark-mode .view-options {
@@ -894,14 +905,15 @@ onUnmounted(() => {
 .option-item {
   display: flex;
   align-items: center;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.3rem;
 }
 
 .option-item label {
-  margin-left: 0.5rem;
+  margin-left: 0.4rem;
   cursor: pointer;
   color: inherit;
   transition: color 0.3s ease;
+  font-size: 0.75rem;
 }
 
 .dark-mode .option-item label {
@@ -915,9 +927,10 @@ onUnmounted(() => {
 .graph-container {
   flex: 1;
   position: relative;
-  min-height: 400px;
   background: white;
   transition: background-color 0.3s ease;
+  overflow: hidden;
+  height: 100%;
 }
 
 .graph-container.dark-container,
@@ -928,8 +941,8 @@ onUnmounted(() => {
 .graph-canvas {
   width: 100%;
   height: 100%;
-  min-height: 400px;
   transition: background-color 0.3s ease;
+  overflow: hidden;
 }
 
 .dark-mode .graph-canvas {
@@ -942,7 +955,7 @@ onUnmounted(() => {
   justify-content: center;
   height: 100%;
   color: #64748b;
-  font-size: 1rem;
+  font-size: 0.9rem;
   transition: color 0.3s ease;
 }
 
@@ -952,6 +965,7 @@ onUnmounted(() => {
 
 input[type="checkbox"] {
   accent-color: #0ea5e9;
+  transform: scale(0.8);
 }
 
 .dark-mode input[type="checkbox"] {
@@ -959,9 +973,10 @@ input[type="checkbox"] {
 }
 
 .help-section {
-  margin-top: 2rem;
-  padding-top: 1rem;
+  margin-top: 0.8rem;
+  padding-top: 0.8rem;
   border-top: 1px solid #e2e8f0;
+  flex-shrink: 0;
 }
 
 .dark-mode .help-section {
@@ -969,8 +984,8 @@ input[type="checkbox"] {
 }
 
 .help-section h4 {
-  margin: 0 0 0.75rem 0;
-  font-size: 0.875rem;
+  margin: 0 0 0.4rem 0;
+  font-size: 0.75rem;
   font-weight: 600;
   color: inherit;
 }
@@ -986,10 +1001,10 @@ input[type="checkbox"] {
 }
 
 .help-list li {
-  font-size: 0.75rem;
+  font-size: 0.65rem;
   color: #64748b;
-  margin-bottom: 0.5rem;
-  line-height: 1.4;
+  margin-bottom: 0.25rem;
+  line-height: 1.2;
 }
 
 .dark-mode .help-list li {
@@ -1002,5 +1017,23 @@ input[type="checkbox"] {
 
 .dark-mode .help-list li strong {
   color: #d1d5db !important;
+}
+
+/* 滚动条样式 */
+.sidebar::-webkit-scrollbar {
+  width: 3px;
+}
+
+.sidebar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.sidebar::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 2px;
+}
+
+.dark-mode .sidebar::-webkit-scrollbar-thumb {
+  background: #4a5568;
 }
 </style>
