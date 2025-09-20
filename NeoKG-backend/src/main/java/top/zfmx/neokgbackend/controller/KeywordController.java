@@ -46,7 +46,7 @@ public class KeywordController {
     }
     @PostMapping
     public Result<Boolean> addKeyword(@RequestBody Keyword keyword) {
-        boolean saved = keywordService.save(keyword);
+        boolean saved = keywordService.saveWithVec(keyword);
         return Result.ok(saved);
     }
 }

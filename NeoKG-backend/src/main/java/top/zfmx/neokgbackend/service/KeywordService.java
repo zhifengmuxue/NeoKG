@@ -13,4 +13,6 @@ import java.util.List;
 public interface KeywordService extends IService<Keyword> {
     List<Keyword> findAllKeywords();
     IPage<Keyword> findAllKeywordsPage(int pageNum, int pageSize);
+
+    boolean saveWithVec(Keyword keyword);
 }

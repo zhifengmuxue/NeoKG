@@ -22,5 +22,10 @@ spring:
           model: text-embedding-v4
       api-key: ${BAILIAN_KEY}
 
+#mybatis-plus:
+#  configuration:
+#    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+
+
 
 

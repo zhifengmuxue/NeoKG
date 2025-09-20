@@ -67,7 +67,7 @@
         :pagination="paginationConfig"
         :loading="loading"
         :row-selection="rowSelection"
-        row-key="id"
+        :row-key="getRowKey"
         :scroll="{ x: 800 }"
         @change="handleTableChange"
         :style="{ 
@@ -106,7 +106,7 @@
                 编辑
               </a-button>
               <a-popconfirm
-                title="确定要删除这个关键词吗？"
+                :title="`确定要删除关键词 '${record.name}' 吗？ID: ${safeStringifyId(record.id)}`"
                 ok-text="确定"
                 cancel-text="取消"
                 @confirm="handleDelete(record.id)"
@@ -215,6 +215,22 @@ import {
 } from '@ant-design/icons-vue'
 import { isDarkMode } from '@/stores/theme'
 import axios from 'axios'
+import { safeStringifyId, safeJsonParse } from '@/utils/id'
+
+// 创建自定义axios实例，处理响应中的大整数
+const apiClient = axios.create({
+  transformResponse: [function (data) {
+    if (typeof data === 'string') {
+      try {
+        // 使用安全的JSON解析方法
+        return safeJsonParse(data)
+      } catch (e) {
+        return data
+      }
+    }
+    return data
+  }]
+})
 
 // 主题样式 - 扩展更多样式配置
 const themeStyles = computed(() => {
@@ -339,7 +355,8 @@ const paginationConfig = computed(() => ({
 const rowSelection = computed(() => ({
   selectedRowKeys: selectedRowKeys.value,
   onChange: (keys) => {
-    selectedRowKeys.value = keys
+    selectedRowKeys.value = keys.map(key => safeStringifyId(key))
+    console.log('选中的行keys:', selectedRowKeys.value)
   }
 }))
 
@@ -369,55 +386,64 @@ const filteredKeywords = computed(() => {
 // API 配置
 const API_BASE_URL = import.meta.env.DEV ? '/api/keyword' : 'http://localhost:8080/api/keyword'
 
-// API 方法
+// API 方法 - 使用自定义axios实例
 const keywordAPI = {
   // 获取关键词列表（分页）
   async getKeywordsPage(currentPage = 1, pageSize = 10) {
     console.log('正在请求:', `${API_BASE_URL}/page`, { currentPage, pageSize })
     try {
-      const response = await axios.get(`${API_BASE_URL}/page`, {
+      const response = await apiClient.get(`${API_BASE_URL}/page`, {
         params: { currentPage, pageSize }
       })
       console.log('API响应:', response)
       return response.data
     } catch (error) {
       console.error('API请求失败:', error)
-      if (error.response) {
-        console.error('响应状态:', error.response.status)
-        console.error('响应数据:', error.response.data)
-      }
       throw error
     }
   },
 
   // 获取所有关键词列表
   async getAllKeywords() {
-    const response = await axios.get(`${API_BASE_URL}`)
+    const response = await apiClient.get(`${API_BASE_URL}`)
     return response.data
   },
 
   // 创建关键词
   async createKeyword(data) {
-    const response = await axios.post(`${API_BASE_URL}`, data)
+    const response = await apiClient.post(`${API_BASE_URL}`, data)
     return response.data
   },
 
   // 更新关键词
   async updateKeyword(keyword) {
-    const response = await axios.put(`${API_BASE_URL}`, keyword)
+    // 确保更新时ID也是字符串
+    const safeKeyword = {
+      ...keyword,
+      id: safeStringifyId(keyword.id)
+    }
+    const response = await apiClient.put(`${API_BASE_URL}`, safeKeyword)
     return response.data
   },
 
-  // 删除关键词
+  // 删除关键词 - 确保ID精度
   async deleteKeyword(id) {
-    const response = await axios.delete(`${API_BASE_URL}/${id}`)
+    const safeId = safeStringifyId(id)
+    console.log('删除关键词 - 原始ID:', id, '类型:', typeof id)
+    console.log('删除关键词 - 安全ID:', safeId, '类型:', typeof safeId)
+    
+    const response = await apiClient.delete(`${API_BASE_URL}/${safeId}`)
     return response.data
   },
 
-  // 批量删除关键词
+  // 批量删除关键词 - 确保所有ID精度
   async batchDeleteKeywords(ids) {
-    const response = await axios.delete(`${API_BASE_URL}/batch`, {
-      data: ids
+    const safeIds = ids.map(id => safeStringifyId(id))
+    console.log('批量删除 - 原始ID列表:', ids)
+    console.log('批量删除 - 安全ID列表:', safeIds)
+    
+    const response = await apiClient.delete(`${API_BASE_URL}/batch`, {
+      data: safeIds
     })
     return response.data
   }
@@ -436,10 +462,18 @@ const loadKeywords = async () => {
     const result = await keywordAPI.getKeywordsPage(pagination.current, pagination.pageSize)
     console.log('后端返回结果:', result)
     
-    // 根据您的实际响应结构处理数据
     if (result.code === 'SUCCESS') {
       const pageData = result.data
-      keywords.value = pageData.records || []
+      // 确保所有ID都是字符串格式，避免精度丢失
+      keywords.value = (pageData.records || []).map(keyword => {
+        const safeId = safeStringifyId(keyword.id)
+        console.log(`关键词 ${keyword.name} - 原始ID: ${keyword.id}, 安全ID: ${safeId}`)
+        return {
+          ...keyword,
+          id: safeId
+        }
+      })
+      
       pagination.total = pageData.total || 0
       pagination.current = pageData.current || pagination.current
       pagination.pageSize = pageData.size || pagination.pageSize
@@ -451,34 +485,17 @@ const loadKeywords = async () => {
     }
   } catch (error) {
     console.error('加载关键词列表失败:', error)
-    
-    // 显示具体的错误信息
-    let errorMsg = '加载关键词列表失败'
-    if (error.response) {
-      errorMsg += `: ${error.response.status} - ${error.response.data?.message || error.response.statusText}`
-    } else if (error.message) {
-      errorMsg += `: ${error.message}`
-    }
-    message.error(errorMsg)
+    message.error('加载关键词列表失败: ' + (error.message || '网络错误'))
     
     // 使用模拟数据进行测试
-    console.log('使用模拟数据...')
     keywords.value = [
       {
-        id: 1,
+        id: '1968641228140580864',  // 直接使用字符串
         name: 'Vue.js',
         description: '前端框架，用于构建用户界面',
         alias: ['Vue', '前端框架'],
         createdAt: '2024-01-15T10:30:00Z',
         updatedAt: '2024-01-15T10:30:00Z'
-      },
-      {
-        id: 2,
-        name: '数据分析',
-        description: '通过数据挖掘获得业务洞察',
-        alias: ['数据挖掘', '业务分析'],
-        createdAt: '2024-01-16T14:20:00Z',
-        updatedAt: '2024-01-16T14:20:00Z'
       }
     ]
     pagination.total = keywords.value.length
@@ -590,12 +607,13 @@ const handleCancel = () => {
 }
 
 const handleDelete = async (id) => {
+  console.log('删除操作开始 - 收到的ID:', id, '类型:', typeof id)
+  
   try {
     const result = await keywordAPI.deleteKeyword(id)
     
     if (result.code === 'SUCCESS') {
       message.success('关键词删除成功')
-      // 如果当前页没有数据了，回到上一页
       if (keywords.value.length === 1 && pagination.current > 1) {
         pagination.current = pagination.current - 1
       }
@@ -611,6 +629,8 @@ const handleDelete = async (id) => {
 
 const handleBatchDelete = async () => {
   if (selectedRowKeys.value.length === 0) return
+  
+  console.log('批量删除操作 - 收到的ID列表:', selectedRowKeys.value, '类型:', selectedRowKeys.value.map(id => typeof id))
   
   try {
     const result = await keywordAPI.batchDeleteKeywords(selectedRowKeys.value)
@@ -644,6 +664,13 @@ const handleRefresh = () => {
 onMounted(() => {
   loadKeywords()
 })
+
+// 确保表格row-key使用字符串ID
+const getRowKey = (record) => {
+  const key = safeStringifyId(record.id)
+  console.log('表格行key:', key, '原始record.id:', record.id)
+  return key
+}
 </script>
 
 <style scoped>

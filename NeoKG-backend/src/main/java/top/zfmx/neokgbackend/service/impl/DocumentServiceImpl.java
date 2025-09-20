@@ -19,6 +19,7 @@ import top.zfmx.neokgbackend.model.DocumentRef;
 import top.zfmx.neokgbackend.model.Keyword;
 import top.zfmx.neokgbackend.service.DataImportService;
 import top.zfmx.neokgbackend.service.DocumentService;
+import top.zfmx.neokgbackend.utils.KeywordMatcher;
 
 import java.io.IOException;
 import java.util.*;
@@ -55,6 +56,7 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
             throw new RuntimeException("文件名为空");
         }
 
+        // 解析不同类型的文件
         List<Document> documents;
         if (filename.endsWith(".csv")) {
             documents = dataImportService.parseCsvToDocuments(file);
@@ -66,9 +68,7 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
             throw new RuntimeException("不支持的文件类型");
         }
 
-        System.out.println(documents.get(0).getKeywords());
-
-        // 预先获取数据库中所有关键词（用于字符匹配 + 向量匹配）
+        // 预先获取数据库中所有关键词
         List<Keyword> allKeywords = keywordMapper.findAllKeywords();
 
         for (Document doc : documents) {
@@ -85,32 +85,15 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
             if (doc.getKeywords() != null) {
                 for (Keyword kw : doc.getKeywords()) {
 
-                    // 1️⃣ 字符匹配优先
-                    Keyword matchedKeyword = allKeywords.stream()
-                            .filter(dbKw -> dbKw.getName().equalsIgnoreCase(kw.getName()))
-                            .findFirst()
-                            .orElse(null);
+                    // 先做字符匹配
+                    Keyword matchedKeyword = KeywordMatcher.findByName(allKeywords, kw);
 
                     if (matchedKeyword == null) {
-                        // 2️⃣ 向量匹配
-                        float[] kwEmbedding = embeddingModel.embed(
-                                kw.getName() + " " +
-                                        String.join(" ", kw.getAlias() != null ? kw.getAlias() : List.of()) + " " +
-                                        Optional.ofNullable(kw.getDescription()).orElse("")
-                        );
-                        Vector<Float> kwVec = new Vector<>();
-                        for (float f : kwEmbedding) kwVec.add(f);
-                        kw.setVec(kwVec);
+                        // 生成关键词 embedding
+                        kw.generateEmbedding(embeddingModel);
 
-                        double maxSim = 0;
-                        for (Keyword dbKw : allKeywords) {
-                            if (dbKw.getVec() == null) continue;
-                            double sim = cosineSimilarity(dbKw.getVec(), kwVec);
-                            if (sim > keywordSimilarRatio && sim > maxSim) {
-                                maxSim = sim;
-                                matchedKeyword = dbKw;
-                            }
-                        }
+                        // 再做语义匹配
+                        matchedKeyword = KeywordMatcher.findMostSimilar(allKeywords, kw, kw.getVec(), keywordSimilarRatio);
                     }
 
                     if (matchedKeyword != null) {
@@ -136,22 +119,6 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
         }
 
         return documents;
-    }
-
-    /**
-     * 计算余弦相似度
-     */
-    private double cosineSimilarity(Vector<Float> vec1, Vector<Float> vec2) {
-        if (vec1 == null || vec2 == null || vec1.size() != vec2.size()) return 0.0;
-        double dot = 0, normA = 0, normB = 0;
-        for (int i = 0; i < vec1.size(); i++) {
-            double a = vec1.get(i);
-            double b = vec2.get(i);
-            dot += a * b;
-            normA += a * a;
-            normB += b * b;
-        }
-        return dot / (Math.sqrt(normA) * Math.sqrt(normB) + 1e-10);
     }
 
 

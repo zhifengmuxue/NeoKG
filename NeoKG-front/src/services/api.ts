@@ -60,4 +60,42 @@ export const getGraphTypes = async (): Promise<string[]> => {
   }
 }
 
+// 删除关键词
+export const deleteKeyword = async (id: string): Promise<void> => {
+  try {
+    const response = await fetch(`/api/keywords/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+  } catch (error) {
+    console.error('删除关键词失败:', error)
+    throw error
+  }
+}
+
+// 删除文档
+export const deleteDocument = async (id: string): Promise<void> => {
+  try {
+    const response = await fetch(`/api/documents/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+  } catch (error) {
+    console.error('删除文档失败:', error)
+    throw error
+  }
+}
+
 export default apiClient
