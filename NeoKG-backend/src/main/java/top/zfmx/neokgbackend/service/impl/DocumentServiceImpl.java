@@ -11,6 +11,7 @@ import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import top.zfmx.neokgbackend.enums.DocType;
 import top.zfmx.neokgbackend.mapper.DocumentMapper;
 import top.zfmx.neokgbackend.mapper.DocumentRefMapper;
 import top.zfmx.neokgbackend.mapper.KeywordMapper;
@@ -55,6 +56,7 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
         if (filename == null) {
             throw new RuntimeException("文件名为空");
         }
+        DocType type = DocType.fromFilename(filename);
 
         // 解析不同类型的文件
         List<Document> documents;
@@ -74,7 +76,7 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
         for (Document doc : documents) {
             Long docId = snowflake.nextId();
             doc.setId(docId);
-
+            doc.setType(type);
             // 文档 embedding
             float[] docEmbedding = embeddingModel.embed(doc.getContent());
             List<Float> docEmbeddingList = new ArrayList<>(docEmbedding.length);

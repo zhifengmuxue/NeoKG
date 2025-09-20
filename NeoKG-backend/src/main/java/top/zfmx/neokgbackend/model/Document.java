@@ -2,10 +2,13 @@ package top.zfmx.neokgbackend.model;
 
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
+import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.apache.ibatis.type.EnumTypeHandler;
+import top.zfmx.neokgbackend.enums.DocType;
 import top.zfmx.neokgbackend.handle.VectorTypeHandler;
 
 import java.time.LocalDateTime;
@@ -21,11 +24,14 @@ import java.util.Vector;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@TableName(autoResultMap = true)
 public class Document {
     @TableId
     private Long id;
     private String title;
     private String content;
+    @TableField(typeHandler = EnumTypeHandler.class)
+    private DocType type;
 
     @TableField(typeHandler = VectorTypeHandler.class)
     private Vector<Float> vec;

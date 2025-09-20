@@ -8,6 +8,7 @@ CREATE TABLE document
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
+ALTER TABLE document ADD COLUMN type varchar(50);
 
 -- 向量索引
 CREATE INDEX idx_document_vec ON document USING ivfflat (vec vector_l2_ops);
