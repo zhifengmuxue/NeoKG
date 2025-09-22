@@ -11,32 +11,43 @@ import {
   LogoutOutlined,
   RightOutlined,
   LeftOutlined,
-  TagsOutlined
+  TagsOutlined,
+  FileTextOutlined,
+  RobotOutlined
 } from '@ant-design/icons-vue'
 import { isDarkMode, toggleDarkMode, initTheme } from './stores/theme'
+import { isLoggedIn, userInfo, userDisplayName, userAvatar, logout, initUserState } from './stores/user'
+import { message } from 'ant-design-vue'
+import { authService } from './services/auth'
 
 const router = useRouter()
 const route = useRoute()
 
-const collapsed = ref(true) // 默认收起状态
+const collapsed = ref(true)
+
+// 判断是否显示主应用布局（不在认证页面时显示）
+const showMainLayout = computed(() => {
+  return !route.path.startsWith('/auth')
+})
 
 // 根据当前路由设置选中的菜单项
 const selectedKeys = computed(() => {
   const routeMap: Record<string, string[]> = {
-    '/query': ['1'],
-    '/dashboard': ['2'],
-    '/upload': ['3'],
-    '/keywords': ['4'],
+    '/ai-chat': ['1'],
+    '/query': ['2'],
+    '/dashboard': ['3'],
+    '/upload': ['4'],
+    '/keywords': ['5'],
+    '/documents': ['6'],
     '/settings': ['settings']
   }
-  return routeMap[route.path] || ['2']
+  return routeMap[route.path] || ['3']
 })
 
 // 计算主题相关的样式
 const themeStyles = computed(() => {
   if (isDarkMode.value) {
     return {
-      // 深色主题样式
       layoutBg: '#141414',
       siderBg: '#001529',
       headerBg: '#001529',
@@ -48,7 +59,6 @@ const themeStyles = computed(() => {
     }
   } else {
     return {
-      // 浅色主题样式
       layoutBg: '#ffffff',
       siderBg: '#ffffff',
       headerBg: '#ffffff',
@@ -61,9 +71,9 @@ const themeStyles = computed(() => {
   }
 })
 
-// 判断是否是 Query 页面
-const isQueryPage = computed(() => {
-  return route.path === '/query'
+// 判断是否是全屏页面
+const isFullHeightPage = computed(() => {
+  return route.path === '/query' || route.path === '/ai-chat'
 })
 
 const toggleCollapsed = (): void => {
@@ -72,17 +82,22 @@ const toggleCollapsed = (): void => {
 
 const handleMenuClick = (key: string): void => {
   if (key === 'theme') {
-    console.log('点击主题切换按钮，当前状态:', isDarkMode.value)
     toggleDarkMode()
-    console.log('切换后状态:', isDarkMode.value)
+    return
+  }
+  
+  if (key === 'logout') {
+    handleLogout()
     return
   }
   
   const routeMap: Record<string, string> = {
-    '1': '/query',
-    '2': '/dashboard',
-    '3': '/upload',
-    '4': '/keywords',
+    '1': '/ai-chat',
+    '2': '/query',
+    '3': '/dashboard',
+    '4': '/upload',
+    '5': '/keywords',
+    '6': '/documents',
     'settings': '/settings'
   }
   if (routeMap[key]) {
@@ -90,14 +105,33 @@ const handleMenuClick = (key: string): void => {
   }
 }
 
+// 登出处理
+const handleLogout = async () => {
+  try {
+    // 调用后端登出接口
+    await authService.logout()
+  } catch (error) {
+    console.error('登出接口调用失败:', error)
+  } finally {
+    // 无论接口是否成功，都清除本地状态
+    logout()
+    message.success('已退出登录')
+    router.push('/auth/login')
+  }
+}
+
 onMounted(() => {
   initTheme()
-  console.log('App.vue mounted, 主题状态:', isDarkMode.value)
+  initUserState()
 })
 </script>
 
 <template>
-  <a-layout :style="{ minHeight: '100vh', background: themeStyles.layoutBg }">
+  <!-- 认证页面：使用 AuthLayout -->
+  <router-view v-if="!showMainLayout" />
+  
+  <!-- 主应用：使用原来的布局 -->
+  <a-layout v-else :style="{ minHeight: '100vh', background: themeStyles.layoutBg }">
     <!-- 侧边栏 -->
     <a-layout-sider 
       v-model:collapsed="collapsed" 
@@ -137,28 +171,41 @@ onMounted(() => {
             style="border-right: none;"
             @click="(e: { key: string }) => handleMenuClick(e.key)"
           >
+            <!-- AI问答 -->
             <a-menu-item key="1" class="menu-item">
+              <robot-outlined />
+              <span>AI问答</span>
+            </a-menu-item>
+            <!-- 可视化图谱 -->
+            <a-menu-item key="2" class="menu-item">
               <search-outlined />
               <span>可视化图谱</span>
             </a-menu-item>
-            <a-menu-item key="2" class="menu-item">
+            <!-- 数据面板 -->
+            <a-menu-item key="3" class="menu-item">
               <dashboard-outlined />
               <span>数据面板</span>
             </a-menu-item>
-            <a-menu-item key="3" class="menu-item">
+            <!-- 上传文件 -->
+            <a-menu-item key="4" class="menu-item">
               <upload-outlined />
               <span>上传文件</span>
             </a-menu-item>
-            <a-menu-item key="4" class="menu-item">
+            <!-- 关键词管理 -->
+            <a-menu-item key="5" class="menu-item">
               <tags-outlined />
               <span>关键词管理</span>
+            </a-menu-item>
+            <!-- 文档管理 -->
+            <a-menu-item key="6" class="menu-item">
+              <file-text-outlined />
+              <span>文档管理</span>
             </a-menu-item>
           </a-menu>
         </div>
 
         <!-- 底部区域 -->
         <div class="bottom-section">
-          <!-- 分隔线 -->
           <a-divider :style="{ margin: '16px 12px', borderColor: themeStyles.borderColor }" />
 
           <!-- 底部功能菜单 -->
@@ -177,6 +224,11 @@ onMounted(() => {
               <a-menu-item key="theme" class="menu-item">
                 <bulb-outlined />
                 <span>{{ isDarkMode ? '浅色主题' : '深色主题' }}</span>
+              </a-menu-item>
+              <!-- 登出按钮 -->
+              <a-menu-item key="logout" class="menu-item logout-item">
+                <logout-outlined />
+                <span>退出登录</span>
               </a-menu-item>
             </a-menu>
           </div>
@@ -215,18 +267,51 @@ onMounted(() => {
           <div :style="{ color: themeStyles.textColor, fontSize: '16px', fontWeight: '500' }">
             欢迎使用 NeoKG 管理平台
           </div>
+          
+          <!-- 用户信息区域 -->
+          <div class="user-info" :style="{ display: 'flex', alignItems: 'center', gap: '12px' }">
+            <span :style="{ color: themeStyles.textColor, fontSize: '14px' }">
+              {{ userDisplayName }}
+            </span>
+            <a-dropdown placement="bottomRight">
+              <div class="user-avatar" style="cursor: pointer;">
+                <a-avatar 
+                  :size="36" 
+                  :src="userAvatar" 
+                  :style="{ backgroundColor: '#1890ff' }"
+                >
+                  <template #icon>
+                    <user-outlined />
+                  </template>
+                </a-avatar>
+              </div>
+              <template #overlay>
+                <a-menu>
+                  <a-menu-item key="profile" @click="router.push('/settings')">
+                    <user-outlined />
+                    <span>个人资料</span>
+                  </a-menu-item>
+                  <a-menu-divider />
+                  <a-menu-item key="logout" @click="handleLogout">
+                    <logout-outlined />
+                    <span>退出登录</span>
+                  </a-menu-item>
+                </a-menu>
+              </template>
+            </a-dropdown>
+          </div>
         </div>
       </a-layout-header>
 
-      <!-- 内容区域 - 根据页面类型调整样式 -->
+      <!-- 内容区域 -->
       <a-layout-content 
         :style="{
           marginTop: '64px',
-          padding: isQueryPage ? 0 : '24px 16px',
+          padding: isFullHeightPage ? 0 : '24px 16px',
           background: themeStyles.contentBg,
-          minHeight: isQueryPage ? 'calc(100vh - 64px)' : 'calc(100vh - 64px - 70px)',
-          height: isQueryPage ? 'calc(100vh - 64px)' : 'auto',
-          overflow: isQueryPage ? 'hidden' : 'visible'
+          minHeight: isFullHeightPage ? 'calc(100vh - 64px)' : 'calc(100vh - 64px - 70px)',
+          height: isFullHeightPage ? 'calc(100vh - 64px)' : 'auto',
+          overflow: isFullHeightPage ? 'hidden' : 'visible'
         }"
       >
         <div :style="{ 
@@ -234,15 +319,15 @@ onMounted(() => {
           padding: 0, 
           borderRadius: 0, 
           boxShadow: 'none',
-          height: isQueryPage ? '100%' : 'auto'
+          height: isFullHeightPage ? '100%' : 'auto'
         }">
           <router-view />
         </div>
       </a-layout-content>
 
-      <!-- 底部 - Query 页面不显示 -->
+      <!-- 底部 -->
       <a-layout-footer 
-        v-if="!isQueryPage"
+        v-if="!isFullHeightPage"
         :style="{
           textAlign: 'center',
           background: themeStyles.footerBg,
@@ -258,7 +343,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 样式部分保持不变 */
+/* 样式保持不变 */
 .sider-content {
   height: 100vh;
   display: flex;
@@ -296,6 +381,10 @@ onMounted(() => {
   line-height: 40px !important;
 }
 
+.logout-item {
+  color: #ff4d4f !important;
+}
+
 .collapse-menu-item {
   display: flex;
   align-items: center;
@@ -313,6 +402,21 @@ onMounted(() => {
   opacity: 0.7;
 }
 
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  transition: all 0.3s;
+}
+
+.user-avatar:hover {
+  transform: scale(1.05);
+}
+
+/* 深度样式 */
 :deep(.ant-layout-sider-children) {
   height: 100vh;
   overflow: hidden;
@@ -350,5 +454,13 @@ onMounted(() => {
 
 :deep(.ant-form) {
   background: transparent !important;
+}
+
+:deep(.logout-item) {
+  color: #ff4d4f !important;
+}
+
+:deep(.logout-item:hover) {
+  background-color: rgba(255, 77, 79, 0.1) !important;
 }
 </style>

@@ -409,15 +409,29 @@ const selectedEntityCount = computed(() => {
   return entityTypes.value.filter(entity => entity.selected).length
 })
 
-// 新增：获取社区数量
+// 社区发现按钮文本
+const getCommunityButtonText = (): string => {
+  if (communityLoading.value) return '检测中...'
+  return communityActive.value ? '收起社区发现' : '社区发现'
+}
+
+// 异常检测按钮文本
+const getAnomalyButtonText = (): string => {
+  if (anomalyLoading.value) return '检测中...'
+  return anomalyActive.value ? '收起异常检测' : '运行异常检测'
+}
+
+// 获取社区数量
 const getCommunityCount = (): number => {
   if (!communityResults.value?.communities || !Array.isArray(communityResults.value.communities)) {
     return 0
   }
-  return communityResults.value.communities.length
+  return communityResults.value.communities.filter(community => 
+    community && Array.isArray(community.nodes) && community.nodes.length > 0
+  ).length
 }
 
-// 新增：获取最大社区大小
+// 获取最大社区大小
 const getLargestCommunitySize = (): number => {
   if (!communityResults.value?.communities || !Array.isArray(communityResults.value.communities)) {
     return 0
@@ -430,21 +444,9 @@ const getLargestCommunitySize = (): number => {
   return sizes.length > 0 ? Math.max(...sizes) : 0
 }
 
-// 新增：获取路径长度
+// 获取路径长度
 const getPathLength = (): number => {
   return pathResults.value?.nodes?.length || 0
-}
-
-// 社区发现按钮文本
-const getCommunityButtonText = (): string => {
-  if (communityLoading.value) return '检测中...'
-  return communityActive.value ? '收起社区发现' : '社区发现'
-}
-
-// 异常检测按钮文本
-const getAnomalyButtonText = (): string => {
-  if (anomalyLoading.value) return '检测中...'
-  return anomalyActive.value ? '收起异常检测' : '运行异常检测'
 }
 
 // 异常检测
@@ -496,13 +498,17 @@ const runAnomalyDetection = async (): Promise<void> => {
   }
 }
 
-// 修复：社区发现函数 - 使用真实的图数据节点ID
+// 社区发现函数
 const runCommunityDetection = async (): Promise<void> => {
   // 如果已经激活，则收起
   if (communityActive.value) {
     communityActive.value = false
     communityResults.value = null
     communityNodeColors.value.clear()
+    // 清除路径高亮，恢复原始状态
+    pathHighlightNodes.value.clear()
+    pathHighlightEdges.value.clear()
+    pathResults.value = null
     applyFilters() // 恢复原始颜色
     return
   }
@@ -530,20 +536,28 @@ const runCommunityDetection = async (): Promise<void> => {
         throw new Error('API返回的社区数据格式错误')
       }
       
-      communityResults.value = result.data
+      // 过滤掉空的或无效的社区
+      const validCommunities = result.data.communities.filter(community => 
+        community && 
+        Array.isArray(community.nodes) && 
+        community.nodes.length > 0 &&
+        community.nodes.every(nodeId => typeof nodeId === 'string')
+      )
+      
+      if (validCommunities.length === 0) {
+        throw new Error('没有找到有效的社区数据')
+      }
+      
+      communityResults.value = { communities: validCommunities }
       
       // 为每个社区分配不同颜色
       const newCommunityNodeColors = new Map<string, string>()
       
-      result.data.communities.forEach((community, communityIndex) => {
-        if (!community || !Array.isArray(community.nodes)) {
-          console.warn(`社区 ${communityIndex} 数据格式错误:`, community)
-          return
-        }
-        
+      validCommunities.forEach((community, communityIndex) => {
         const color = communityColors[communityIndex % communityColors.length]
         community.nodes.forEach(nodeId => {
-          if (typeof nodeId === 'string') {
+          // 验证节点ID是否存在于图中
+          if (originalGraphData.value?.nodes.some(node => node.id === nodeId)) {
             newCommunityNodeColors.set(nodeId, color)
           }
         })
@@ -552,13 +566,18 @@ const runCommunityDetection = async (): Promise<void> => {
       communityNodeColors.value = newCommunityNodeColors
       communityActive.value = true
       
+      // 清除路径高亮
+      pathHighlightNodes.value.clear()
+      pathHighlightEdges.value.clear()
+      pathResults.value = null
+      
       // 更新图表颜色
       updateChartWithCommunities()
       
       console.log('社区发现结果处理完成:', {
-        社区数量: getCommunityCount(),
+        有效社区数量: validCommunities.length,
         最大社区大小: getLargestCommunitySize(),
-        节点颜色映射: newCommunityNodeColors.size
+        着色节点数: newCommunityNodeColors.size
       })
     } else {
       throw new Error(result.message || '社区发现失败')
@@ -566,32 +585,14 @@ const runCommunityDetection = async (): Promise<void> => {
   } catch (error) {
     console.error('社区发现失败，使用模拟数据:', error)
     
-    // 使用真实图数据的节点ID生成模拟社区数据
+    // 使用真实图数据的节点ID生成更好的模拟社区数据
     if (originalGraphData.value && originalGraphData.value.nodes.length > 0) {
       const nodes = originalGraphData.value.nodes
+      const edges = originalGraphData.value.edges
       const totalNodes = nodes.length
       
-      // 确保至少有3个社区，但不超过节点总数
-      const numCommunities = Math.min(5, Math.max(3, Math.ceil(totalNodes / 8)))
-      
-      const communities = []
-      
-      // 随机分配节点到社区
-      const shuffledNodes = [...nodes].sort(() => Math.random() - 0.5)
-      const nodesPerCommunity = Math.ceil(totalNodes / numCommunities)
-      
-      for (let i = 0; i < numCommunities; i++) {
-        const startIndex = i * nodesPerCommunity
-        const endIndex = Math.min(startIndex + nodesPerCommunity, totalNodes)
-        const communityNodes = shuffledNodes.slice(startIndex, endIndex)
-        
-        if (communityNodes.length > 0) {
-          communities.push({
-            id: i + 1,
-            nodes: communityNodes.map(node => node.id)
-          })
-        }
-      }
+      // 基于节点连接关系生成更合理的社区
+      const communities = generateMockCommunities(nodes, edges)
       
       communityResults.value = { communities }
       
@@ -603,31 +604,121 @@ const runCommunityDetection = async (): Promise<void> => {
           newCommunityNodeColors.set(nodeId, color)
         })
       })
+      
       communityNodeColors.value = newCommunityNodeColors
       communityActive.value = true
       
+      // 清除路径高亮
+      pathHighlightNodes.value.clear()
+      pathHighlightEdges.value.clear()
+      pathResults.value = null
+      
       updateChartWithCommunities()
       
-      console.log('使用模拟社区数据:', {
+      console.log('使用改进的模拟社区数据:', {
         社区数量: communities.length,
         总节点数: totalNodes,
         社区详情: communities.map((c, i) => `社区${i+1}: ${c.nodes.length}个节点`)
       })
     } else {
       console.error('没有可用的图数据生成模拟社区')
-      // 完全fallback的模拟数据
-      communityResults.value = {
-        communities: [
-          { id: 1, nodes: ['node1', 'node2', 'node3'] },
-          { id: 2, nodes: ['node4', 'node5'] },
-          { id: 3, nodes: ['node6', 'node7', 'node8', 'node9'] }
-        ]
-      }
-      communityActive.value = true
     }
   } finally {
     communityLoading.value = false
   }
+}
+
+// 生成更合理的模拟社区数据
+const generateMockCommunities = (nodes: Node[], edges: Edge[]) => {
+  const communities = []
+  
+  // 按节点类型分组作为基础社区
+  const docNodes = nodes.filter(node => node.id.startsWith('doc-'))
+  const kwNodes = nodes.filter(node => node.id.startsWith('kw-'))
+  
+  // 如果文档节点足够多，按大小分组
+  if (docNodes.length >= 6) {
+    const sortedDocs = docNodes.sort((a, b) => (b.size || 20) - (a.size || 20))
+    const midPoint = Math.ceil(sortedDocs.length / 2)
+    
+    communities.push({
+      id: 1,
+      nodes: sortedDocs.slice(0, midPoint).map(n => n.id)
+    })
+    
+    if (sortedDocs.length > midPoint) {
+      communities.push({
+        id: 2,
+        nodes: sortedDocs.slice(midPoint).map(n => n.id)
+      })
+    }
+  } else {
+    // 文档数量少，作为一个社区
+    if (docNodes.length > 0) {
+      communities.push({
+        id: 1,
+        nodes: docNodes.map(n => n.id)
+      })
+    }
+  }
+  
+  // 关键词按字母或大小分组
+  if (kwNodes.length >= 8) {
+    const sortedKeywords = kwNodes.sort((a, b) => (b.size || 20) - (a.size || 20))
+    const chunkSize = Math.ceil(kwNodes.length / 3)
+    
+    for (let i = 0; i < 3; i++) {
+      const startIndex = i * chunkSize
+      const endIndex = Math.min(startIndex + chunkSize, kwNodes.length)
+      const chunk = sortedKeywords.slice(startIndex, endIndex)
+      
+      if (chunk.length > 0) {
+        communities.push({
+          id: communities.length + 1,
+          nodes: chunk.map(n => n.id)
+        })
+      }
+    }
+  } else if (kwNodes.length > 0) {
+    // 关键词数量少，分成两组或一组
+    if (kwNodes.length >= 4) {
+      const midPoint = Math.ceil(kwNodes.length / 2)
+      communities.push({
+        id: communities.length + 1,
+        nodes: kwNodes.slice(0, midPoint).map(n => n.id)
+      })
+      communities.push({
+        id: communities.length + 1,
+        nodes: kwNodes.slice(midPoint).map(n => n.id)
+      })
+    } else {
+      communities.push({
+        id: communities.length + 1,
+        nodes: kwNodes.map(n => n.id)
+      })
+    }
+  }
+  
+  // 确保至少有一个社区
+  if (communities.length === 0 && nodes.length > 0) {
+    communities.push({
+      id: 1,
+      nodes: nodes.map(n => n.id)
+    })
+  }
+  
+  return communities
+}
+
+// 更新图表社区颜色
+const updateChartWithCommunities = (): void => {
+  if (!myChart.value || !originalGraphData.value) return
+  
+  console.log('开始更新图表社区颜色')
+  console.log('社区节点颜色映射:', communityNodeColors.value)
+  
+  // 应用筛选并更新颜色
+  applyFilters()
 }
 
 // 新增：路径搜索
@@ -638,12 +729,28 @@ const runPathSearch = async (): Promise<void> => {
     console.log('起始节点:', pathSearch.value.startKeyword, '类型:', pathSearch.value.startType)
     console.log('目标节点:', pathSearch.value.endKeyword, '类型:', pathSearch.value.endType)
     
-    // 使用新的参数结构
+    // 根据标签和类型查找对应的节点ID
+    const startNode = originalGraphData.value?.nodes.find(node => {
+      const prefix = pathSearch.value.startType === 'KEYWORD' ? 'kw-' : 'doc-'
+      return node.id.startsWith(prefix) && node.label === pathSearch.value.startKeyword
+    })
+    
+    const endNode = originalGraphData.value?.nodes.find(node => {
+      const prefix = pathSearch.value.endType === 'KEYWORD' ? 'kw-' : 'doc-'
+      return node.id.startsWith(prefix) && node.label === pathSearch.value.endKeyword
+    })
+    
+    if (!startNode || !endNode) {
+      throw new Error(`未找到节点: ${!startNode ? pathSearch.value.startKeyword : pathSearch.value.endKeyword}`)
+    }
+    
+    console.log('找到起始节点ID:', startNode.id)
+    console.log('找到目标节点ID:', endNode.id)
+    
+    // 使用节点ID作为参数
     const params = new URLSearchParams({
-      start: pathSearch.value.startKeyword,
-      end: pathSearch.value.endKeyword,
-      startType: pathSearch.value.startType,
-      endType: pathSearch.value.endType
+      startId: startNode.id,
+      endId: endNode.id
     })
     
     const response = await fetch(`${PATH_SEARCH_API_URL}?${params.toString()}`, {
@@ -711,27 +818,14 @@ const runPathSearch = async (): Promise<void> => {
   }
 }
 
-// 修改：更新图表社区颜色
-const updateChartWithCommunities = (): void => {
-  if (!myChart.value || !originalGraphData.value) return
-  
-  // 清除路径高亮
-  pathHighlightNodes.value.clear()
-  pathHighlightEdges.value.clear()
-  pathResults.value = null
-  
-  // 应用筛选并更新颜色
-  applyFilters()
-}
-
-// 修改：更新图表路径高亮
+// 更新图表路径高亮
 const updateChartWithPathHighlight = (): void => {
   if (!myChart.value || !originalGraphData.value) return
   
-  // 清除社区颜色
-  communityNodeColors.value.clear()
-  communityResults.value = null
+  // 清除社区状态
   communityActive.value = false
+  communityResults.value = null
+  communityNodeColors.value.clear()
   
   // 应用筛选并更新高亮
   applyFilters()
