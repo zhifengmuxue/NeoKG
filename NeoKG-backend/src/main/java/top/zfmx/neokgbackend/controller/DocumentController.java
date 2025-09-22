@@ -8,6 +8,7 @@ import org.springframework.web.multipart.MultipartFile;
 import top.zfmx.neokgbackend.enums.MatchMode;
 import top.zfmx.neokgbackend.pojo.entity.Document;
 import top.zfmx.neokgbackend.pojo.response.Result;
+import top.zfmx.neokgbackend.service.DimReduceService;
 import top.zfmx.neokgbackend.service.DocumentService;
 
 import java.io.IOException;
@@ -21,6 +22,8 @@ import java.util.List;
 @RequestMapping("/api/file")
 public class DocumentController {
 
+    @Resource
+    private DimReduceService dimReduceService;
 
     @Resource
     private DocumentService documentService;
@@ -41,7 +44,7 @@ public class DocumentController {
 
         MatchMode matchMode = MatchMode.fromString(matchModeStr);
         List<Document> documents = documentService.parseAndSaveFile(file, threshold, matchMode);
-
+        dimReduceService.reduceAndReplaceAll();
         return Result.ok(documents);
     }
 
