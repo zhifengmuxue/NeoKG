@@ -1,5 +1,6 @@
 package top.zfmx.neokgbackend.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.opencsv.exceptions.CsvValidationException;
 import jakarta.annotation.Resource;
 import org.apache.tika.exception.TikaException;
@@ -7,6 +8,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import top.zfmx.neokgbackend.enums.MatchMode;
 import top.zfmx.neokgbackend.pojo.entity.Document;
+import top.zfmx.neokgbackend.pojo.entity.Keyword;
 import top.zfmx.neokgbackend.pojo.response.Result;
 import top.zfmx.neokgbackend.service.DimReduceService;
 import top.zfmx.neokgbackend.service.DocumentService;
@@ -48,11 +50,31 @@ public class DocumentController {
         return Result.ok(documents);
     }
 
-
-
     @GetMapping("/num")
     public Result<String> getDocumentNum() {
         long count = documentService.count();
         return Result.ok(String.valueOf(count));
+    }
+
+    @GetMapping("/page")
+    public Result<IPage<Document>> getPage(@RequestParam(defaultValue = "1") int currentPage,
+                                                  @RequestParam(defaultValue = "10") int pageSize) {
+        return Result.ok(documentService.findAllDocumentPage(currentPage, pageSize));
+    }
+
+    @DeleteMapping("/batch")
+    public Result<Boolean> deleteKeywords(@RequestBody List<Long> ids) {
+        boolean removed = documentService.removeBatchByIds(ids);
+        return Result.ok(removed);
+    }
+    @DeleteMapping("/{id}")
+    public Result<Boolean> deleteKeyword(@PathVariable Long id) {
+        boolean removed = documentService.removeById(id);
+        return Result.ok(removed);
+    }
+    @PutMapping
+    public Result<Boolean> updateKeyword(@RequestBody Document document) {
+        boolean updated = documentService.updateByIdWithVec(document);
+        return Result.ok(updated);
     }
 }

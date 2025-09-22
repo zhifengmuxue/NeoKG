@@ -63,14 +63,7 @@ public class KeywordServiceImpl
         // 3️⃣ 如果没有命中，再语义匹配
         if (matchedKeyword == null) {
             // 先生成 embedding
-            String text = kw.getName() + " "
-                    + String.join(" ", kw.getAlias() != null ? kw.getAlias() : List.of()) + " "
-                    + Optional.ofNullable(kw.getDescription()).orElse("");
-
-            float[] kwEmbedding = embeddingModel.embed(text);
-            List<Float> embeddingList = new ArrayList<>(kwEmbedding.length);
-            for (float f : kwEmbedding) embeddingList.add(f);
-            kw.setVec(new Vector<>(embeddingList));
+            kw.generateEmbedding(embeddingModel);
 
             // 再语义匹配
             matchedKeyword = KeywordMatcher.findMostSimilar(allKeywords, kw, kw.getVec(), DEFAULT_SIMILAR_RATIO);
@@ -87,6 +80,12 @@ public class KeywordServiceImpl
             kw.setId(snowflake.nextId());
             return this.save(kw);
         }
+    }
+
+    @Override
+    public boolean updateByIdWithVec(Keyword kw) {
+        kw.generateEmbedding(embeddingModel);
+        return this.updateById(kw);
     }
 
 }

@@ -15,4 +15,6 @@ public interface KeywordService extends IService<Keyword> {
     IPage<Keyword> findAllKeywordsPage(int pageNum, int pageSize);
 
     boolean saveWithVec(Keyword keyword);
+
+    boolean updateByIdWithVec(Keyword keyword);
 }

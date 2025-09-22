@@ -1,5 +1,6 @@
 package top.zfmx.neokgbackend.service;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.opencsv.exceptions.CsvValidationException;
 import org.apache.tika.exception.TikaException;
@@ -22,4 +23,8 @@ public interface DocumentService
     List<Document> parseAndSaveFile(MultipartFile file, Double keywordSimilarRatio, MatchMode matchMode) throws IOException, TikaException, CsvValidationException;
 
     List<Document> listDocumentsWithKeywords();
+
+    IPage<Document> findAllDocumentPage(int currentPage, int pageSize);
+
+    boolean updateByIdWithVec(Document document);
 }
