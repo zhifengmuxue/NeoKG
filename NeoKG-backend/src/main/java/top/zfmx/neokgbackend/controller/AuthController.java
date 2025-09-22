@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import top.zfmx.neokgbackend.pojo.dto.LoginDTO;
+import top.zfmx.neokgbackend.pojo.dto.RegisterDTO;
 import top.zfmx.neokgbackend.pojo.response.Result;
 import top.zfmx.neokgbackend.service.SysUserService;
 
@@ -29,7 +30,6 @@ public class AuthController {
     private SysUserService sysUserService;
 
     @PostMapping("/login")
-    @Operation(summary = "登录接口")
     public Result<String> doLogin(@Validated @RequestBody LoginDTO loginDTO) throws AuthException {
         log.info("用户登录：{}, 是否记录:{}",loginDTO.getUsername(),loginDTO.getRememberMe());
         Long userId = sysUserService.login(loginDTO);
@@ -39,11 +39,23 @@ public class AuthController {
         return Result.ok("登录成功",StpUtil.getTokenValue());
     }
 
+
     @PostMapping("/logout")
-    @Operation(summary = "退出接口")
     public Result<String> doLogout(){
         log.info("是否登录：{}", StpUtil.isLogin());
         StpUtil.logout();
         return Result.ok("注销成功");
+    }
+
+    @PostMapping("/register")
+    public Result<String> doRegister(@Validated @RequestBody RegisterDTO registerDTO) {
+        log.info("用户注册：{}", registerDTO.getUsername());
+
+        Long userId = sysUserService.register(registerDTO);
+
+        // 注册成功后自动登录（可选）
+        StpUtil.login(userId, registerDTO.getRememberMe());
+
+        return Result.ok("注册成功", StpUtil.getTokenValue());
     }
 }
