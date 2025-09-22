@@ -75,30 +75,6 @@ public class DataImportController {
         return Result.ok(documents);
     }
 
-    /**
-     * 上传文件并解析成知识图谱
-     * - file: 支持 csv, md, markdown, doc, docx, pdf
-     * - meta: 元模型（包含实体类型 + 关系类型）
-     */
-    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public Result<ExtractedGraph> uploadFile(
-            @RequestParam("file") MultipartFile file,
-            @RequestParam("meta") String metaStr
-    ) throws Exception {
-        ObjectMapper mapper = new ObjectMapper();
-        GraphMetaDTO meta = mapper.readValue(metaStr, GraphMetaDTO.class);
-
-        // 根据 ID 查完整的元模型
-        List<EntityType> entityTypes = metaService.selectEntityBatchIds(meta.getEntityTypeIds());
-        List<RelationType> relationTypes = metaService.selectRelationBatchIds(meta.getRelationTypeIds());
-
-        String filename = file.getOriginalFilename();
-        if (filename == null) throw new RuntimeException("文件名不能为空");
-
-        ExtractedGraph graph=dataImportMetaService.parseFile(file, entityTypes, relationTypes);
-
-        return Result.ok(graph);
-    }
 
 
 }

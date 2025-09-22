@@ -15,7 +15,9 @@ public interface GraphNeo4jService {
 
     void clearAll();
 
-    Map<String, Object> getDocKeywordGraph();
+    Map<String, Object> getGraphWithRedis();
 
     Map<String, Object> getCommunityGraph();
+
+    Map<String, Object> getAllGraph();
 }

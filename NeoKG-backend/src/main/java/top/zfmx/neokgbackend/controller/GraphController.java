@@ -38,7 +38,12 @@ public class GraphController {
      */
     @GetMapping("/doc-keyword")
     public Map<String, Object> getDocKeywordGraph() {
-        return graphNeo4jService.getDocKeywordGraph();
+        return graphNeo4jService.getGraphWithRedis();
+    }
+
+    @GetMapping("/all")
+    public Map<String, Object> getAllGraph() {
+        return graphNeo4jService.getAllGraph();
     }
 
     /**

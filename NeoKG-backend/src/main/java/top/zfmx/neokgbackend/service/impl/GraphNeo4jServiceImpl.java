@@ -3,6 +3,9 @@ package top.zfmx.neokgbackend.service.impl;
 import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import jakarta.annotation.Resource;
+import org.neo4j.driver.Record;
+import org.neo4j.driver.types.Node;
+import org.neo4j.driver.types.Relationship;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import top.zfmx.neokgbackend.pojo.dto.GraphEdge;
@@ -16,7 +19,7 @@ import top.zfmx.neokgbackend.repository.GraphRepository;
 import top.zfmx.neokgbackend.repository.KeywordNodeRepository;
 import top.zfmx.neokgbackend.service.GraphNeo4jService;
 import top.zfmx.neokgbackend.service.KeywordService;
-
+import org.neo4j.driver.*;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
@@ -32,6 +35,8 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
     private GraphRepository graphRepository;
     @Resource
     private KeywordService keywordService;
+    @Resource
+    private Driver driver;
 
     @Resource(name = "stringRedisTemplate")
     private StringRedisTemplate redisTemplate;
@@ -93,13 +98,17 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
 
     @Override
     public void clearAll() {
-        documentNodeRepository.deleteAll();
-        keywordNodeRepository.deleteAll();
+        try (Session session = driver.session()) {
+            session.writeTransaction(tx -> {
+                tx.run("MATCH (n) DETACH DELETE n");
+                return null;
+            });
+        }
         redisTemplate.delete(DOC_KEYWORD_CACHE);
     }
 
     @Override
-    public Map<String, Object> getDocKeywordGraph() {
+    public Map<String, Object> getGraphWithRedis() {
         // 1. 先查缓存
         String cacheJson = redisTemplate.opsForValue().get(DOC_KEYWORD_CACHE);
         if (cacheJson != null) {
@@ -242,5 +251,69 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
         graph.put("edges", edges);
 
         return graph;
+    }
+
+    @Override
+    public Map<String, Object> getAllGraph() {
+        Map<String, Object> result = new HashMap<>();
+        List<Map<String, Object>> nodes = new ArrayList<>();
+        List<Map<String, Object>> edges = new ArrayList<>();
+        Map<String, String> idToFrontendId = new HashMap<>(); // neo4j 内部 id -> 前端 id
+
+        try (Session session = driver.session()) {
+
+            // 查询所有节点
+            session.readTransaction(tx -> {
+                Result rs = tx.run("MATCH (n) RETURN n");
+                while (rs.hasNext()) {
+                    Record record = rs.next();
+                    Node node = record.get("n").asNode();
+
+                    Object rawIdObj = node.get("id").asObject(); // 支持 Long / Integer / String
+                    String rawId = rawIdObj.toString();
+                    String label = node.labels().iterator().next();
+                    String frontendId = label.substring(0, 2).toLowerCase() + "-" + rawId;
+
+                    idToFrontendId.put(rawId, frontendId);
+
+                    Map<String, Object> nodeMap = new HashMap<>();
+                    nodeMap.put("id", frontendId);
+                    Object nameProp = node.get("name").isNull() ? null : node.get("name").asObject();
+                    Object titleProp = node.get("title").isNull() ? null : node.get("title").asObject();
+                    String labelText = nameProp != null ? nameProp.toString()
+                            : titleProp != null ? titleProp.toString()
+                            : label;
+                    nodeMap.put("label", labelText);
+
+                    nodeMap.put("size", label.equalsIgnoreCase("Document") ? 30 : 20);
+                    nodeMap.put("color", label.equalsIgnoreCase("Document") ? "#5470c6" : "#91cc75");
+                    nodes.add(nodeMap);
+                }
+                return null;
+            });
+
+// 查询关系
+            session.readTransaction(tx -> {
+                Result rs = tx.run("MATCH (a)-[r]->(b) RETURN a.id AS startId, b.id AS endId");
+                while (rs.hasNext()) {
+                    Record record = rs.next();
+
+                    String startIdRaw = record.get("startId").asObject().toString();
+                    String endIdRaw = record.get("endId").asObject().toString();
+
+                    Map<String, Object> edge = new HashMap<>();
+                    edge.put("source", idToFrontendId.get(startIdRaw));
+                    edge.put("target", idToFrontendId.get(endIdRaw));
+                    edges.add(edge);
+                }
+                return null;
+            });
+
+
+        }
+
+        result.put("nodes", nodes);
+        result.put("edges", edges);
+        return result;
     }
 }

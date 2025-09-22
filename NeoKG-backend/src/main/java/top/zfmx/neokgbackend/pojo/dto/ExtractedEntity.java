@@ -16,7 +16,7 @@ import java.util.Map;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ExtractedEntity {
-    private String id;
+    private Long id;
     private String type;
     private Map<String, Object> properties;
 }

@@ -16,10 +16,10 @@ import java.util.Map;
 @AllArgsConstructor
 @NoArgsConstructor
 public class ExtractedRelation {
-    private String id;         // 唯一标识
+    private Long id;         // 唯一标识
     private String type;       // 关系类型，对应 RelationType.name
-    private String startEntity;// 起点实体 ID
-    private String endEntity;  // 终点实体 ID
+    private Long startEntityId;// 起点实体 ID
+    private Long endEntityId;  // 终点实体 ID
     private Map<String, Object> properties; // 动态属性
 }
 

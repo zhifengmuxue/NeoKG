@@ -51,8 +51,8 @@ public class AiServiceImpl implements AiService {
     @Override
     public String explainMeta(String content, List<EntityType> entityTypes, List<RelationType> relationTypes) {
         StringBuilder sb = new StringBuilder();
-        System.out.println("实体类型: " + entityTypes);
-        System.out.println("关系类型: " + relationTypes);
+//        System.out.println("实体类型: " + entityTypes);
+//        System.out.println("关系类型: " + relationTypes);
 
         sb.append("你是一个知识图谱抽取助手。请根据用户定义的元模型，从文本中提取实体和关系。\n\n");
 

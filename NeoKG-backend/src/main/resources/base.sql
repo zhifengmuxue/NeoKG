@@ -58,20 +58,6 @@ created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- 图表
-CREATE TABLE graph (
-id BIGSERIAL PRIMARY KEY,
-user_id BIGINT NOT NULL REFERENCES sys_user(id) ON DELETE CASCADE,
-name VARCHAR(200) NOT NULL,
-description TEXT,
-
-created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
--- 索引（可选，提升查询效率）
-CREATE INDEX idx_graph_user_id ON graph(user_id);
-
 
 -----------------------------------------------
 -- 实体类型表
@@ -89,6 +75,30 @@ name VARCHAR(255) NOT NULL,
 start_entity_id BIGINT REFERENCES entity_type(id),
 end_entity_id BIGINT REFERENCES entity_type(id),
 properties TEXT[]
+);
+
+-- 实体实例表
+CREATE TABLE entity_instance (
+id BIGINT PRIMARY KEY,                -- AI 返回的实体 ID 或自生成 ID
+entity_type_id BIGINT REFERENCES entity_type(id),  -- 对应元模型实体类型
+type VARCHAR(50) NOT NULL,            -- 实体类型名称，如 Document、Keyword
+properties JSONB,
+created_at TIMESTAMP DEFAULT NOW(),
+updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- 关系实例表
+CREATE TABLE relation_instance (
+id BIGINT PRIMARY KEY,                -- AI 返回的关系 ID 或自生成 ID
+type VARCHAR(50) NOT NULL,            -- 关系类型，如 HAS_KEYWORD
+start_entity_id BIGINT NOT NULL,      -- 对应 entity_instance.id
+end_entity_id BIGINT NOT NULL,        -- 对应 entity_instance.id
+relation_type_id BIGINT,
+properties JSONB,                     -- 关系属性 JSON，例如 {"index":1}
+created_at TIMESTAMP DEFAULT NOW(),
+updated_at TIMESTAMP DEFAULT NOW(),
+CONSTRAINT fk_start_entity FOREIGN KEY(start_entity_id) REFERENCES entity_instance(id) ON DELETE CASCADE,
+CONSTRAINT fk_end_entity FOREIGN KEY(end_entity_id) REFERENCES entity_instance(id) ON DELETE CASCADE
 );
 
 

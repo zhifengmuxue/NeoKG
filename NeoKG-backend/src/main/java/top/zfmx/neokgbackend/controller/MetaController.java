@@ -1,12 +1,23 @@
 package top.zfmx.neokgbackend.controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.opencsv.exceptions.CsvValidationException;
 import jakarta.annotation.Resource;
+import org.apache.tika.exception.TikaException;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+import top.zfmx.neokgbackend.enums.MatchMode;
+import top.zfmx.neokgbackend.pojo.dto.ExtractedGraph;
+import top.zfmx.neokgbackend.pojo.dto.GraphMetaDTO;
+import top.zfmx.neokgbackend.pojo.entity.Document;
 import top.zfmx.neokgbackend.pojo.entity.meta.EntityType;
 import top.zfmx.neokgbackend.pojo.entity.meta.RelationType;
 import top.zfmx.neokgbackend.pojo.response.Result;
+import top.zfmx.neokgbackend.service.DataImportMetaService;
 import top.zfmx.neokgbackend.service.MetaService;
 
+import java.io.IOException;
 import java.util.List;
 
 /**
@@ -18,6 +29,34 @@ import java.util.List;
 public class MetaController {
     @Resource
     private MetaService metaService;
+
+    @Resource
+    private DataImportMetaService dataImportMetaService;
+    /**
+     * 上传文件并解析成知识图谱
+     * - file: 支持 csv, md, markdown, doc, docx, pdf
+     * - meta: 元模型（包含实体类型 + 关系类型）
+     */
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public Result<ExtractedGraph> uploadFile(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("meta") String metaStr
+    ) throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        GraphMetaDTO meta = mapper.readValue(metaStr, GraphMetaDTO.class);
+
+        // 根据 ID 查完整的元模型
+        List<EntityType> entityTypes = metaService.selectEntityBatchIds(meta.getEntityTypeIds());
+        List<RelationType> relationTypes = metaService.selectRelationBatchIds(meta.getRelationTypeIds());
+
+        String filename = file.getOriginalFilename();
+        if (filename == null) throw new RuntimeException("文件名不能为空");
+
+        ExtractedGraph graph=dataImportMetaService.parseFile(file, entityTypes, relationTypes);
+
+        return Result.ok(graph);
+    }
+
 
     // ------------------- EntityType -------------------
     @GetMapping("/entities")

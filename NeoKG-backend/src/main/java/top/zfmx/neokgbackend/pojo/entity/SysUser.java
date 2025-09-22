@@ -29,9 +29,6 @@ public class SysUser{
     private String password;
     private Boolean isEnable;
 
-    @TableField(exist = false)
-    private List<Graph> graphs;
-
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 
