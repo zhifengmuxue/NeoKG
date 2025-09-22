@@ -1,6 +1,9 @@
 package top.zfmx.neokgbackend.service.impl;
 
 import cn.hutool.core.lang.Snowflake;
+import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.opencsv.exceptions.CsvValidationException;
 
@@ -167,6 +170,21 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
         }
 
         return documents;
+    }
+
+    @Override
+    public IPage<Document> findAllDocumentPage(int currentPage, int pageSize) {
+        Page<Document> page = new Page<>(currentPage, pageSize);
+        return documentMapper.selectPage(page, new QueryWrapper<>());
+    }
+
+    @Override
+    public boolean updateByIdWithVec(Document document) {
+        float[] docEmbedding = embeddingModel.embed(document.getContent());
+        List<Float> docEmbeddingList = new ArrayList<>(docEmbedding.length);
+        for (float f : docEmbedding) docEmbeddingList.add(f);
+        document.setVec(new Vector<>(docEmbeddingList));
+        return this.updateById(document);
     }
 
 

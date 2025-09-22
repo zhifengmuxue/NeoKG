@@ -48,7 +48,7 @@ public class KeywordController {
     }
     @PutMapping
     public Result<Boolean> updateKeyword(@RequestBody Keyword keyword) {
-        boolean updated = keywordService.updateById(keyword);
+        boolean updated = keywordService.updateByIdWithVec(keyword);
         return Result.ok(updated);
     }
     @PostMapping
