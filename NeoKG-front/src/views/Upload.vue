@@ -10,6 +10,7 @@
 
     <!-- 上传区域 -->
     <div class="upload-section" :style="getCardStyle()">
+      <!-- 修改上传区域的提示信息 -->
       <a-upload-dragger
         name="file"
         :multiple="true"
@@ -26,7 +27,7 @@
             点击或拖拽文件到此区域上传
           </p>
           <p class="ant-upload-hint" :style="{ color: isDark ? '#b3b3b3' : '#666' }">
-            支持单个或批量上传。支持 .txt, .md, .csv, .json, .xml, .pdf, .docx 等格式
+            支持单个或批量上传。支持 .txt, .md, .markdown, .csv, .json, .xml, .pdf, .docx 等格式
           </p>
         </div>
       </a-upload-dragger>
@@ -153,17 +154,6 @@
               <span :style="{ color: isDark ? '#ffffff' : '#333' }">上传配置</span>
             </template>
             <a-form layout="vertical">
-              <a-form-item label="目标图谱">
-                <template #label>
-                  <span :style="{ color: isDark ? '#b3b3b3' : '#666' }">目标图谱</span>
-                </template>
-                <a-select v-model:value="uploadConfig.targetGraph" :style="getSelectStyle()">
-                  <a-select-option value="main">主图谱</a-select-option>
-                  <a-select-option value="test">测试图谱</a-select-option>
-                  <a-select-option value="backup">备份图谱</a-select-option>
-                </a-select>
-              </a-form-item>
-              
               <a-form-item label="更新模式">
                 <template #label>
                   <span :style="{ color: isDark ? '#b3b3b3' : '#666' }">更新模式</span>
@@ -379,13 +369,13 @@ const fileList = ref([])
 const uploading = ref(false)
 const detailModalVisible = ref(false)
 const selectedDocuments = ref([])
-const syncing = ref(false) // 新增：同步状态
+const syncing = ref(false)
 
 const uploadConfig = ref({
   targetGraph: 'main',
-  updateMode: 'incremental', // 新增：更新模式，默认增量更新
+  updateMode: 'incremental',
   threshold: 0.8,
-  matchingMethods: ['stringMatch', 'semanticMatch'] // 修改：匹配方式
+  matchingMethods: ['stringMatch', 'semanticMatch']
 })
 
 const uploadStats = ref({
@@ -513,7 +503,7 @@ const generateFileKey = (file) => {
 
 // 修复重复文件问题的核心函数
 const beforeUpload = (file) => {
-  console.log('beforeUpload 被调用，文件:', file.name, '大小:', file.size)
+  console.log('beforeUpload 被调用，文件:', file.name, '类型:', file.type, '大小:', file.size)
   
   // 生成文件唯一标识
   const fileKey = generateFileKey(file)
@@ -530,10 +520,12 @@ const beforeUpload = (file) => {
     return false
   }
   
-  // 检查文件类型
+  // 修复：检查文件类型 - 支持更多Markdown类型和扩展名检测
   const allowedTypes = [
     'text/plain',
     'text/markdown',
+    'text/x-markdown',
+    'application/markdown',
     'text/csv',
     'application/json',
     'application/xml',
@@ -543,9 +535,26 @@ const beforeUpload = (file) => {
     'application/msword'
   ]
   
-  if (!allowedTypes.includes(file.type)) {
-    message.error(`不支持的文件类型: ${file.type}`)
+  // 获取文件扩展名
+  const fileName = file.name.toLowerCase()
+  const allowedExtensions = ['.txt', '.md', '.markdown', '.csv', '.json', '.xml', '.pdf', '.docx', '.doc']
+  
+  // 检查MIME类型或扩展名
+  const isValidType = allowedTypes.includes(file.type) || 
+                     allowedExtensions.some(ext => fileName.endsWith(ext))
+  
+  if (!isValidType) {
+    console.error('不支持的文件类型:', file.type, '文件名:', file.name)
+    message.error(`不支持的文件类型: ${file.name}。支持的格式: ${allowedExtensions.join(', ')}`)
     return false
+  }
+  
+  // 特殊处理：如果是.md文件但MIME类型不正确，手动修正
+  if ((fileName.endsWith('.md') || fileName.endsWith('.markdown')) && 
+      !file.type.includes('markdown')) {
+    console.log('检测到Markdown文件，MIME类型:', file.type, '-> 修正为 text/markdown')
+    // 创建一个新的File对象，修正MIME类型
+    file = new File([file], file.name, { type: 'text/markdown' })
   }
   
   if (file.size > 50 * 1024 * 1024) {
@@ -566,10 +575,10 @@ const beforeUpload = (file) => {
     file: file,
     entitiesCount: 0,
     documents: null,
-    fileKey: fileKey // 保存文件唯一标识
+    fileKey: fileKey
   }
   
-  console.log('添加文件到列表:', fileObj.name, '唯一ID:', fileObj.uid)
+  console.log('添加文件到列表:', fileObj.name, '唯一ID:', fileObj.uid, '最终MIME类型:', file.type)
   fileList.value.push(fileObj)
   
   // 延迟一下确保UI更新
@@ -591,11 +600,11 @@ const removeFile = (index) => {
 const clearAll = () => {
   fileList.value = []
   uploadStats.value = { success: 0, failed: 0, totalEntities: 0 }
-  fileIdCounter = 0 // 重置计数器
+  fileIdCounter = 0
   message.info('文件列表已清空')
 }
 
-// 新增：同步文档到图数据库
+// 同步文档到图数据库
 const syncDocumentsToGraph = async () => {
   if (uploadStats.value.success === 0) {
     console.log('没有成功上传的文件，跳过图谱同步')
@@ -633,7 +642,7 @@ const syncDocumentsToGraph = async () => {
   }
 }
 
-// 修改：开始上传函数，在完成后调用图谱同步
+// 开始上传函数
 const startUpload = async () => {
   if (fileList.value.length === 0) {
     message.warning('请先选择要上传的文件')
@@ -663,6 +672,7 @@ const startUpload = async () => {
     // 上传成功后自动同步到图数据库
     message.info('正在同步文档到图数据库...')
     await syncDocumentsToGraph()
+    
   } else {
     message.warning('没有文件上传成功，无需同步到图数据库')
   }
@@ -689,8 +699,8 @@ const uploadSingleFile = async (fileObj, index) => {
     const formData = new FormData()
     formData.append('file', fileObj.file)
     formData.append('threshold', uploadConfig.value.threshold.toString())
-    formData.append('updateMode', uploadConfig.value.updateMode) // 添加更新模式
-    formData.append('matchingMethods', JSON.stringify(uploadConfig.value.matchingMethods)) // 添加匹配方式
+    formData.append('updateMode', uploadConfig.value.updateMode)
+    formData.append('matchingMethods', JSON.stringify(uploadConfig.value.matchingMethods))
     
     console.log('调用后端API上传文件:', fileObj.name, '配置:', {
       threshold: uploadConfig.value.threshold,
@@ -733,8 +743,8 @@ const uploadSingleFile = async (fileObj, index) => {
         entitiesCount: documents.length,
         documents: documents,
         threshold: uploadConfig.value.threshold,
-        updateMode: uploadConfig.value.updateMode, // 记录更新模式
-        matchingMethods: uploadConfig.value.matchingMethods // 记录匹配方式
+        updateMode: uploadConfig.value.updateMode,
+        matchingMethods: uploadConfig.value.matchingMethods
       })
       
       console.log(`${fileObj.name} 上传成功，解析出 ${documents.length} 个文档片段`)
@@ -793,7 +803,7 @@ const viewHistoryDetails = (item) => {
   }
 }
 
-// 新增：获取更新模式文本
+// 获取更新模式文本
 const getUpdateModeText = (updateMode) => {
   const textMap = {
     'incremental': '增量更新',
@@ -802,7 +812,7 @@ const getUpdateModeText = (updateMode) => {
   return textMap[updateMode] || '未知'
 }
 
-// 新增：获取匹配方式文本
+// 获取匹配方式文本
 const getMatchingMethodsText = (matchingMethods) => {
   if (!matchingMethods || matchingMethods.length === 0) return '未设置'
   
