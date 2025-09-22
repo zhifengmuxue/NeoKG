@@ -46,3 +46,28 @@ CREATE INDEX idx_document_ref_document ON document_ref (document_id);
 
 ALTER TABLE document
 ALTER COLUMN id SET DEFAULT nextval('document_id_seq');
+
+-- 用户表
+CREATE TABLE sys_user (
+id BIGSERIAL PRIMARY KEY,
+username VARCHAR(100) NOT NULL UNIQUE,
+password VARCHAR(255) NOT NULL,
+is_enable BOOLEAN DEFAULT TRUE,
+
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 图表
+CREATE TABLE graph (
+id BIGSERIAL PRIMARY KEY,
+user_id BIGINT NOT NULL REFERENCES sys_user(id) ON DELETE CASCADE,
+name VARCHAR(200) NOT NULL,
+description TEXT,
+
+created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 索引（可选，提升查询效率）
+CREATE INDEX idx_graph_user_id ON graph(user_id);

@@ -31,6 +31,20 @@ spring:
     redis:
       port: 6379
       host: localhost
+springdoc:
+  api-docs:
+    enabled: true
+    path: /api-docs
+  swagger-ui:
+    path: /doc.html
+  packages-to-scan: top.zfmx.neokgbackend.controller
+sa-token:
+  is-share: true
+  timeout: 2592000
+  auto-renew: true
+  active-timeout: -1
+threshold:
+  vector-similarity: 0.8
 
 #mybatis-plus:
 #  configuration:

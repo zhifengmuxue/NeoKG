@@ -2,6 +2,8 @@ package top.zfmx.neokgbackend.controller;
 
 import jakarta.annotation.Resource;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import top.zfmx.neokgbackend.pojo.response.Result;
@@ -26,7 +28,7 @@ public class AdminController {
     @Resource
     private DocumentRefService documentRefService;
 
-    @RequestMapping(value = "/chat", produces = "text/html;charset=utf-8")
+    @PostMapping(value = "/chat", produces = "text/html;charset=utf-8")
     public String chat(String message) {
         return keywordsAiServiceService.explain(message);
     }
@@ -36,7 +38,7 @@ public class AdminController {
      * @return 返回操作结果
      * @since 0.0.2
      */
-    @RequestMapping("clean")
+    @GetMapping("clean")
     @Transactional(rollbackFor = Exception.class)
     public Result<String> clean() {
         keywordService.remove(null);
