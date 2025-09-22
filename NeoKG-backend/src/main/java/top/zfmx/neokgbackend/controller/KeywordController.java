@@ -3,8 +3,8 @@ package top.zfmx.neokgbackend.controller;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
-import top.zfmx.neokgbackend.model.Keyword;
-import top.zfmx.neokgbackend.response.Result;
+import top.zfmx.neokgbackend.pojo.entity.Keyword;
+import top.zfmx.neokgbackend.pojo.response.Result;
 import top.zfmx.neokgbackend.service.KeywordService;
 
 import java.util.List;

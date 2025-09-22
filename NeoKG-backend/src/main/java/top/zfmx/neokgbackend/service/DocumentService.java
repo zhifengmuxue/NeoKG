@@ -5,7 +5,7 @@ import com.opencsv.exceptions.CsvValidationException;
 import org.apache.tika.exception.TikaException;
 import org.springframework.web.multipart.MultipartFile;
 import top.zfmx.neokgbackend.enums.MatchMode;
-import top.zfmx.neokgbackend.model.Document;
+import top.zfmx.neokgbackend.pojo.entity.Document;
 
 import java.io.IOException;
 import java.util.List;

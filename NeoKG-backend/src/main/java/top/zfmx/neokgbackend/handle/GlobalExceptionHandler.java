@@ -7,7 +7,7 @@ import org.apache.tika.exception.TikaException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.xml.sax.SAXException;
-import top.zfmx.neokgbackend.response.Result;
+import top.zfmx.neokgbackend.pojo.response.Result;
 
 import java.io.IOException;
 

@@ -1,6 +1,6 @@
 package top.zfmx.neokgbackend.utils;
 
-import top.zfmx.neokgbackend.model.Keyword;
+import top.zfmx.neokgbackend.pojo.entity.Keyword;
 
 import java.util.List;
 import java.util.Vector;

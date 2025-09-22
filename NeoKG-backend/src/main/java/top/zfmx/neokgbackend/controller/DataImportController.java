@@ -9,8 +9,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import top.zfmx.neokgbackend.model.Document;
-import top.zfmx.neokgbackend.response.Result;
+import top.zfmx.neokgbackend.pojo.entity.Document;
+import top.zfmx.neokgbackend.pojo.response.Result;
 import top.zfmx.neokgbackend.service.DataImportService;
 
 import java.io.IOException;
@@ -30,6 +30,9 @@ public class DataImportController {
     @Resource
     private Tika tika;
 
+    /**
+     * @since 0.0.2
+     */
     @PostMapping
     public Result<List<Document>> importFile(
             @RequestParam("file") MultipartFile file) throws IOException, CsvValidationException, TikaException {

@@ -2,7 +2,7 @@ package top.zfmx.neokgbackend.service;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.service.IService;
-import top.zfmx.neokgbackend.model.Keyword;
+import top.zfmx.neokgbackend.pojo.entity.Keyword;
 
 import java.util.List;
 

@@ -1,11 +1,10 @@
 package top.zfmx.neokgbackend.controller;
 
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import jakarta.annotation.Resource;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-import top.zfmx.neokgbackend.response.Result;
+import top.zfmx.neokgbackend.pojo.response.Result;
 import top.zfmx.neokgbackend.service.DocumentRefService;
 import top.zfmx.neokgbackend.service.DocumentService;
 import top.zfmx.neokgbackend.service.KeywordService;
@@ -32,6 +31,11 @@ public class AdminController {
         return keywordsAiServiceService.explain(message);
     }
 
+    /**
+     * 清空所有数据
+     * @return 返回操作结果
+     * @since 0.0.2
+     */
     @RequestMapping("clean")
     @Transactional(rollbackFor = Exception.class)
     public Result<String> clean() {

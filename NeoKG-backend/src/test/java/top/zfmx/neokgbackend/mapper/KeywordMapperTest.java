@@ -3,7 +3,7 @@ package top.zfmx.neokgbackend.mapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import top.zfmx.neokgbackend.model.Keyword;
+import top.zfmx.neokgbackend.pojo.entity.Keyword;
 
 import java.util.List;
 import java.util.Vector;

@@ -191,7 +191,7 @@
                   :min="0.1" 
                   :max="1.0" 
                   :step="0.05"
-                  :marks="{ 0.1: '0.1', 0.5: '0.5', 0.95: '0.95', 1.0: '1.0' }"
+                  :marks="{ 0.1: '0.1', 0.5: '0.5',0.8: '0.8', 0.95: '0.95', 1.0: '1.0' }"
                 />
                 <div :style="{ color: isDark ? '#b3b3b3' : '#666', fontSize: '12px', marginTop: '4px' }">
                   当前值: {{ uploadConfig.threshold }}
@@ -384,7 +384,7 @@ const syncing = ref(false) // 新增：同步状态
 const uploadConfig = ref({
   targetGraph: 'main',
   updateMode: 'incremental', // 新增：更新模式，默认增量更新
-  threshold: 0.95,
+  threshold: 0.8,
   matchingMethods: ['stringMatch', 'semanticMatch'] // 修改：匹配方式
 })
 

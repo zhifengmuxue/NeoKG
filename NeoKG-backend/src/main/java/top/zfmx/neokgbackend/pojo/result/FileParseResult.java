@@ -1,4 +1,4 @@
-package top.zfmx.neokgbackend.result;
+package top.zfmx.neokgbackend.pojo.result;
 
 import lombok.Data;
 

@@ -1,4 +1,4 @@
-package top.zfmx.neokgbackend.model;
+package top.zfmx.neokgbackend.pojo.entity;
 
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;

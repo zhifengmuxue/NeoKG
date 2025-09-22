@@ -4,11 +4,11 @@ CREATE TABLE document
     id         BIGSERIAL PRIMARY KEY, -- 对应 Document.id
     title      TEXT NOT NULL,         -- Document.title
     content    TEXT,                  -- Document.content
+    type       varchar(50),          -- Document.type
     vec        vector(1024),          -- Document embedding 向量
     created_at TIMESTAMP DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );
-ALTER TABLE document ADD COLUMN type varchar(50);
 
 -- 向量索引
 CREATE INDEX idx_document_vec ON document USING ivfflat (vec vector_l2_ops);

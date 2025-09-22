@@ -4,7 +4,7 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
-import top.zfmx.neokgbackend.model.Document;
+import top.zfmx.neokgbackend.pojo.entity.Document;
 
 import java.util.List;
 import java.util.Vector;

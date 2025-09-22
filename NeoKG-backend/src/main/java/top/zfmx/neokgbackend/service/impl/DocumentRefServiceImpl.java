@@ -3,7 +3,7 @@ package top.zfmx.neokgbackend.service.impl;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import org.springframework.stereotype.Service;
 import top.zfmx.neokgbackend.mapper.DocumentRefMapper;
-import top.zfmx.neokgbackend.model.DocumentRef;
+import top.zfmx.neokgbackend.pojo.entity.DocumentRef;
 import top.zfmx.neokgbackend.service.DocumentRefService;
 
 /**

@@ -2,7 +2,7 @@ package top.zfmx.neokgbackend.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.*;
-import top.zfmx.neokgbackend.model.Keyword;
+import top.zfmx.neokgbackend.pojo.entity.Keyword;
 
 import java.util.List;
 import java.util.Vector;
@@ -27,7 +27,8 @@ public interface KeywordMapper
             @Param("threshold") double threshold
     );
 
-    @Select("SELECT * FROM keyword")
-    List<Keyword> findAllKeywords();
+    @Select("SELECT id, name, description, alias, vec, created_at, updated_at FROM keyword")
+    List<Keyword> listKeywordWithNullVec();
+
 
 }

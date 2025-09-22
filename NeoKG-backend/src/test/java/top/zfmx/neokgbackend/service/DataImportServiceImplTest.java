@@ -9,7 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
-import top.zfmx.neokgbackend.model.Document;
+import top.zfmx.neokgbackend.pojo.entity.Document;
 import top.zfmx.neokgbackend.service.impl.DataImportServiceImpl;
 
 import java.util.List;

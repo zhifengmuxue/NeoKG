@@ -1,11 +1,10 @@
 package top.zfmx.neokgbackend.service.impl;
 
-import com.opencsv.exceptions.CsvValidationException;
 import jakarta.annotation.Resource;
 import org.apache.tika.exception.TikaException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-import top.zfmx.neokgbackend.model.Document;
+import top.zfmx.neokgbackend.pojo.entity.Document;
 import top.zfmx.neokgbackend.service.DataImportService;
 import top.zfmx.neokgbackend.service.KeywordsAiService;
 import com.fasterxml.jackson.core.type.TypeReference;

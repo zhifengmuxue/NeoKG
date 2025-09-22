@@ -139,11 +139,11 @@ onMounted(() => {
           >
             <a-menu-item key="1" class="menu-item">
               <search-outlined />
-              <span>Query</span>
+              <span>可视化图谱</span>
             </a-menu-item>
             <a-menu-item key="2" class="menu-item">
               <dashboard-outlined />
-              <span>看板</span>
+              <span>数据面板</span>
             </a-menu-item>
             <a-menu-item key="3" class="menu-item">
               <upload-outlined />

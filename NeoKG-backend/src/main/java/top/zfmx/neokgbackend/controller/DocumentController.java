@@ -6,8 +6,8 @@ import org.apache.tika.exception.TikaException;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import top.zfmx.neokgbackend.enums.MatchMode;
-import top.zfmx.neokgbackend.model.Document;
-import top.zfmx.neokgbackend.response.Result;
+import top.zfmx.neokgbackend.pojo.entity.Document;
+import top.zfmx.neokgbackend.pojo.response.Result;
 import top.zfmx.neokgbackend.service.DocumentService;
 
 import java.io.IOException;

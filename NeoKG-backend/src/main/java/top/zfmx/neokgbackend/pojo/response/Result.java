@@ -1,4 +1,4 @@
-package top.zfmx.neokgbackend.response;
+package top.zfmx.neokgbackend.pojo.response;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -55,11 +55,7 @@ public class Result<T> {
     public static<T> Result<T> error(String message) {
         return new Result<>(Code.INTERNAL_ERROR,message, null);
     }
-    public static<T> Result<T> unauthorized(String message) {
-        return new Result<>(Code.UNAUTHORIZED, message, null);
-    }
-
-    public static <T> Result<T> failed(String message) {
-        return new Result<>(Code.FAILED, message, null);
+    public static<T> Result<T> cacheError(String message) {
+        return new Result<>(Code.CACHE_NULL,message, null);
     }
 }

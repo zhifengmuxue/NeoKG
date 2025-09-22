@@ -1,7 +1,6 @@
 package top.zfmx.neokgbackend.service.impl;
 
 import cn.hutool.core.lang.Snowflake;
-import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.opencsv.exceptions.CsvValidationException;
 
@@ -16,9 +15,9 @@ import top.zfmx.neokgbackend.enums.MatchMode;
 import top.zfmx.neokgbackend.mapper.DocumentMapper;
 import top.zfmx.neokgbackend.mapper.DocumentRefMapper;
 import top.zfmx.neokgbackend.mapper.KeywordMapper;
-import top.zfmx.neokgbackend.model.Document;
-import top.zfmx.neokgbackend.model.DocumentRef;
-import top.zfmx.neokgbackend.model.Keyword;
+import top.zfmx.neokgbackend.pojo.entity.Document;
+import top.zfmx.neokgbackend.pojo.entity.DocumentRef;
+import top.zfmx.neokgbackend.pojo.entity.Keyword;
 import top.zfmx.neokgbackend.service.DataImportService;
 import top.zfmx.neokgbackend.service.DocumentService;
 import top.zfmx.neokgbackend.utils.KeywordMatcher;
@@ -26,7 +25,6 @@ import top.zfmx.neokgbackend.utils.KeywordMatcher;
 import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
  * @author li ma
@@ -70,7 +68,7 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
         }
 
         // 预加载所有关键词
-        List<Keyword> allKeywords = keywordMapper.findAllKeywords();
+        List<Keyword> allKeywords = keywordMapper.listKeywordWithNullVec();
 
         for (Document doc : documents) {
             Long docId = snowflake.nextId();

@@ -1,4 +1,4 @@
-package top.zfmx.neokgbackend.response;
+package top.zfmx.neokgbackend.pojo.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -17,7 +17,8 @@ public enum Code {
     UNAUTHORIZED(401, "未授权"),
     FAILED(402, "请求失败"),
     INTERNAL_ERROR(500, "系统异常"),
-    FORBIDDEN(403, "禁止访问"),;
+    FORBIDDEN(403, "禁止访问"),
+    CACHE_NULL(1001, "数据缓存尚未生成"),;
 
     private final int code;
     private final String message;

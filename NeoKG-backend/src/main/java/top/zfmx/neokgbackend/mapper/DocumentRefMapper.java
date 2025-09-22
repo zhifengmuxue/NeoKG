@@ -2,7 +2,7 @@ package top.zfmx.neokgbackend.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import org.apache.ibatis.annotations.Mapper;
-import top.zfmx.neokgbackend.model.DocumentRef;
+import top.zfmx.neokgbackend.pojo.entity.DocumentRef;
 
 /**
  * @author li ma

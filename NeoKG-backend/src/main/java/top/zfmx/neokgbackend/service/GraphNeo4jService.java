@@ -1,6 +1,6 @@
 package top.zfmx.neokgbackend.service;
 
-import top.zfmx.neokgbackend.model.Document;
+import top.zfmx.neokgbackend.pojo.entity.Document;
 
 import java.util.List;
 import java.util.Map;
@@ -16,4 +16,6 @@ public interface GraphNeo4jService {
     void clearAll();
 
     Map<String, Object> getDocKeywordGraph();
+
+    Map<String, Object> getCommunityGraph();
 }

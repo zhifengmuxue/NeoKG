@@ -1,4 +1,4 @@
-package top.zfmx.neokgbackend.model;
+package top.zfmx.neokgbackend.pojo.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

@@ -10,6 +10,7 @@ spring:
     username: NeoKG
     password: NeoKG
     driver-class-name: org.postgresql.Driver
+    type: com.alibaba.druid.pool.DruidDataSource
   ai:
     dashscope:
       chat:
@@ -26,6 +27,10 @@ spring:
     authentication:
       username: neo4j
       password: neo4j123
+  data:
+    redis:
+      port: 6379
+      host: localhost
 
 #mybatis-plus:
 #  configuration:

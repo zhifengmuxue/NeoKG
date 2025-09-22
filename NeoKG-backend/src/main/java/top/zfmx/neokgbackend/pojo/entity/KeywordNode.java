@@ -1,7 +1,6 @@
-package top.zfmx.neokgbackend.model;
+package top.zfmx.neokgbackend.pojo.entity;
 
 import lombok.Data;
-import org.springframework.data.annotation.Version;
 import org.springframework.data.neo4j.core.schema.Id;
 import org.springframework.data.neo4j.core.schema.Node;
 
@@ -16,9 +15,12 @@ import java.util.UUID;
 public class KeywordNode {
 
     @Id
-    private String id = UUID.randomUUID().toString(); // 外部生成 ID
-    @Version
-    private Long version;   // SDN 自动维护
+    private String id; // 外部生成 ID
+
+    private Long version;
     private Long keywordId;
     private String name;
+    public KeywordNode() {
+        this.id = UUID.randomUUID().toString();
+    }
 }

@@ -10,7 +10,7 @@ import org.springframework.context.annotation.Configuration;
  * @version 0.0.1
  **/
 @Configuration
-public class IdConfiguration {
+public class UtilsConfiguration {
     @Bean
     public Snowflake snowflake() {
         return IdUtil.getSnowflake(1, 1);
