@@ -5,8 +5,8 @@ import org.apache.tika.exception.TikaException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import top.zfmx.neokgbackend.pojo.entity.Document;
+import top.zfmx.neokgbackend.service.AiService;
 import top.zfmx.neokgbackend.service.DataImportService;
-import top.zfmx.neokgbackend.service.KeywordsAiService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -23,7 +23,7 @@ import java.util.List;
 public class DataImportServiceImpl implements DataImportService {
 
     @Resource
-    private KeywordsAiService keywordsAiService;
+    private AiService aiService;
     @Resource
     private ObjectMapper objectMapper;
 
@@ -40,7 +40,7 @@ public class DataImportServiceImpl implements DataImportService {
             }
         }
         // 调用 AiService 获取 JSON 文本
-        String json = keywordsAiService.explain(textBuilder.toString());
+        String json = aiService.explain(textBuilder.toString());
 
         if (json.startsWith("```")) {
             json = json.replaceAll("```(json)?", "").trim();
@@ -63,7 +63,7 @@ public class DataImportServiceImpl implements DataImportService {
         }
 
         // 调用 AiService 获取 JSON 文本
-        String json = keywordsAiService.explain(textBuilder.toString());
+        String json = aiService.explain(textBuilder.toString());
 
         if (json.startsWith("```")) {
             json = json.replaceAll("```(json)?", "").trim();
@@ -81,7 +81,7 @@ public class DataImportServiceImpl implements DataImportService {
         String text = tika.parseToString(file.getInputStream());
 
         // 调用 AiService 获取 JSON 文本
-        String json = keywordsAiService.explain(text);
+        String json = aiService.explain(text);
 
         if (json.startsWith("```")) {
             json = json.replaceAll("```(json)?", "").trim();

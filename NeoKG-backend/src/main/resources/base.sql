@@ -71,3 +71,24 @@ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 
 -- 索引（可选，提升查询效率）
 CREATE INDEX idx_graph_user_id ON graph(user_id);
+
+
+-----------------------------------------------
+-- 实体类型表
+CREATE TABLE entity_type (
+id BIGSERIAL PRIMARY KEY,
+name VARCHAR(255) NOT NULL,
+description TEXT,
+properties TEXT[]
+);
+
+-- 关系类型表
+CREATE TABLE relation_type (
+id BIGSERIAL PRIMARY KEY,
+name VARCHAR(255) NOT NULL,
+start_entity_id BIGINT REFERENCES entity_type(id),
+end_entity_id BIGINT REFERENCES entity_type(id),
+properties TEXT[]
+);
+
+

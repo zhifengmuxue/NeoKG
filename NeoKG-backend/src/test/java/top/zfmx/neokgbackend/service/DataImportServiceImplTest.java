@@ -22,7 +22,7 @@ import static org.mockito.Mockito.when;
 class DataImportServiceImplTest {
 
     @Mock
-    private KeywordsAiService keywordsAiService;
+    private AiService aiService;
 
     @InjectMocks
     private DataImportServiceImpl dataImportService;
@@ -58,7 +58,7 @@ class DataImportServiceImplTest {
                 "}]";
 
         // 现在这个 when() 会正常工作，因为 keywordsAiService 是 mock 对象
-        when(keywordsAiService.explain(anyString())).thenReturn(aiJson);
+        when(aiService.explain(anyString())).thenReturn(aiJson);
 
         // 调用方法
         List<Document> documents = dataImportService.parseCsvToDocuments(mockFile);
@@ -108,7 +108,7 @@ class DataImportServiceImplTest {
                 "\"keywords\":[{\"tag\":\"tag2\",\"description\":\"desc2\",\"alias\":[\"alias3\"],\"ref\":{\"documentId\":\"Document2\",\"index\":1}}]" +
                 "}]";
 
-        when(keywordsAiService.explain(anyString())).thenReturn(aiJson);
+        when(aiService.explain(anyString())).thenReturn(aiJson);
 
         // 调用方法
         List<Document> documents = dataImportService.parseMarkdownToDocuments(mockFile);
