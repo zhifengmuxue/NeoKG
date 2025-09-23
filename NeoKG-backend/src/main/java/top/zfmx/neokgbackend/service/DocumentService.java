@@ -10,6 +10,7 @@ import top.zfmx.neokgbackend.pojo.entity.Document;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author li ma
@@ -27,4 +28,6 @@ public interface DocumentService
     IPage<Document> findAllDocumentPage(int currentPage, int pageSize);
 
     boolean updateByIdWithVec(Document document);
+
+    List<Map<String, Object>> countDocumentsByTypeInLastWeek();
 }

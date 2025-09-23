@@ -185,13 +185,8 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
 
             String label = docId != null ? title : name;
 
-            String color = switch ((int) community % 5) {
-                case 0 -> "#5470C6";
-                case 1 -> "#91CC75";
-                case 2 -> "#FAC858";
-                case 3 -> "#EE6666";
-                default -> "#73C0DE";
-            };
+            // 🎨 动态颜色分配（基于 HSL）
+            String color = "hsl(" + (community * 47 % 360) + ", 70%, 50%)";
 
             nodes.add(new GraphNode(nodeId, label, 20.0, color));
         }
@@ -212,6 +207,7 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
 
         return graph;
     }
+
 
 
     /**
@@ -263,7 +259,7 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
         try (Session session = driver.session()) {
 
             // 查询所有节点
-            session.readTransaction(tx -> {
+            session.executeRead(tx -> {
                 Result rs = tx.run("MATCH (n) RETURN n");
                 while (rs.hasNext()) {
                     Record record = rs.next();
@@ -292,8 +288,8 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
                 return null;
             });
 
-// 查询关系
-            session.readTransaction(tx -> {
+            // 查询关系
+            session.executeRead(tx -> {
                 Result rs = tx.run("MATCH (a)-[r]->(b) RETURN a.id AS startId, b.id AS endId");
                 while (rs.hasNext()) {
                     Record record = rs.next();
@@ -315,5 +311,123 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
         result.put("nodes", nodes);
         result.put("edges", edges);
         return result;
+    }
+
+    @Override
+    public Map<String, Object> getPageRank(String type, int limit) {
+        try (Session session = driver.session()) {
+
+            // 先删除旧的 projection（避免重复）
+            session.executeWrite(tx -> {
+                tx.run("CALL gds.graph.drop('myGraph', false)");
+                return null;
+            });
+
+            // 根据类型决定 nodeProjection
+            String projection;
+            if (type.equalsIgnoreCase("DOCUMENT")) {
+                projection = "['Document']";
+            } else if (type.equalsIgnoreCase("KEYWORD")) {
+                projection = "['Keyword']";
+            } else { // ALL
+                projection = "['Document','Keyword']";
+            }
+
+            // 创建新 projection
+            session.executeWrite(tx -> {
+                tx.run("CALL gds.graph.project('myGraph', " + projection + ", 'HAS_KEYWORD')");
+                return null;
+            });
+
+            // 执行 PageRank
+            return session.executeRead(tx -> {
+                Result result = tx.run(
+                        "CALL gds.pageRank.stream('myGraph') " +
+                                "YIELD nodeId, score " +
+                                "RETURN gds.util.asNode(nodeId).id AS id, " +
+                                "       coalesce(gds.util.asNode(nodeId).name, gds.util.asNode(nodeId).title) AS label, " +
+                                "       labels(gds.util.asNode(nodeId))[0] AS type, " +
+                                "       score " +
+                                "ORDER BY score DESC LIMIT $limit",
+                        Map.of("limit", limit)
+                );
+
+                List<Map<String, Object>> ranked = new ArrayList<>();
+                while (result.hasNext()) {
+                    Record record = result.next();
+                    ranked.add(Map.of(
+                            "id", record.get("id").asString(),
+                            "label", record.get("label").asString(),
+                            "type", record.get("type").asString(),
+                            "score", record.get("score").asDouble()
+                    ));
+                }
+
+                return Map.of("mode", type.toUpperCase(), "results", ranked);
+            });
+        }
+    }
+
+    /**
+     * 根据 Document ID 查找它的子图证据
+     */
+    public Map<String, Object> findEvidenceSubgraph(Long docId) {
+        List<Map<String, Object>> nodes = new ArrayList<>();
+        List<Map<String, Object>> edges = new ArrayList<>();
+        Map<String, String> idMap = new HashMap<>();
+
+        try (Session session = driver.session()) {
+            session.executeRead(tx -> {
+                // 查找文档节点及其相邻关键词
+                Result rs = tx.run("""
+                        MATCH (d:Document {id: $docId})-[:HAS_KEYWORD]->(k:Keyword)
+                        RETURN d, k
+                        """, Map.of("docId", docId));
+
+                while (rs.hasNext()) {
+                    Record record = rs.next();
+
+                    Node docNode = record.get("d").asNode();
+                    Node kwNode = record.get("k").asNode();
+
+                    // 文档节点
+                    String docFrontendId = "doc-" + docNode.get("id").asLong();
+                    if (!idMap.containsKey("doc-" + docNode.get("id").asLong())) {
+                        Map<String, Object> docMap = Map.of(
+                                "id", docFrontendId,
+                                "label", docNode.get("title").asString("文档"),
+                                "type", "Document"
+                        );
+                        nodes.add(docMap);
+                        idMap.put("doc-" + docNode.get("id").asLong(), docFrontendId);
+                    }
+
+                    // 关键词节点
+                    String kwFrontendId = "kw-" + kwNode.get("id").asLong();
+                    if (!idMap.containsKey("kw-" + kwNode.get("id").asLong())) {
+                        Map<String, Object> kwMap = Map.of(
+                                "id", kwFrontendId,
+                                "label", kwNode.get("name").asString("关键词"),
+                                "type", "Keyword"
+                        );
+                        nodes.add(kwMap);
+                        idMap.put("kw-" + kwNode.get("id").asLong(), kwFrontendId);
+                    }
+
+                    // 边
+                    edges.add(Map.of(
+                            "source", docFrontendId,
+                            "target", kwFrontendId,
+                            "type", "HAS_KEYWORD"
+                    ));
+                }
+                return null;
+            });
+        }
+
+        return Map.of(
+                "nodes", nodes,
+                "edges", edges
+        );
     }
 }

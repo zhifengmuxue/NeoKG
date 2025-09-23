@@ -20,4 +20,8 @@ public interface GraphNeo4jService {
     Map<String, Object> getCommunityGraph();
 
     Map<String, Object> getAllGraph();
+
+    Map<String, Object> getPageRank(String type, int limit);
+
+    Map<String, Object> findEvidenceSubgraph(Long focusDocId);
 }

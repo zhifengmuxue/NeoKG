@@ -15,6 +15,7 @@ import top.zfmx.neokgbackend.service.DocumentService;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author li ma
@@ -76,5 +77,10 @@ public class DocumentController {
     public Result<Boolean> updateKeyword(@RequestBody Document document) {
         boolean updated = documentService.updateByIdWithVec(document);
         return Result.ok(updated);
+    }
+
+    @GetMapping("/stats/weekly")
+    public Result<List<Map<String, Object>>> getWeeklyStats() {
+        return Result.ok(documentService.countDocumentsByTypeInLastWeek());
     }
 }

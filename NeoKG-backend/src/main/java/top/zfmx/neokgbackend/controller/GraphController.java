@@ -83,6 +83,18 @@ public class GraphController {
         return graphNeo4jService.getCommunityGraph();
     }
 
+    /**
+     * PageRank 排名：基于图算法
+     */
+    @GetMapping("/pagerank")
+    public Map<String, Object> getPageRank(
+            @RequestParam(defaultValue = "KEYWORD") String type, // 默认对关键词跑 PageRank
+            @RequestParam(defaultValue = "20") int limit         // 默认取前 20 个
+    ) {
+        return graphNeo4jService.getPageRank(type, limit);
+    }
+
+
     @GetMapping("/analysis/metrics")
     public Result<Map<String, Object>> getMetrics() {
         Map<String, Object> metrics = cacheService.getMetrics();

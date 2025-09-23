@@ -187,5 +187,10 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
         return this.updateById(document);
     }
 
+    @Override
+    public List<Map<String, Object>> countDocumentsByTypeInLastWeek() {
+        return documentMapper.countDocumentsByTypeInLastWeek();
+    }
+
 
 }

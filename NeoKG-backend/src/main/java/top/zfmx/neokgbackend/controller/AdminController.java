@@ -1,10 +1,13 @@
 package top.zfmx.neokgbackend.controller;
 
 import jakarta.annotation.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux;
 import top.zfmx.neokgbackend.pojo.response.Result;
 import top.zfmx.neokgbackend.service.DocumentRefService;
 import top.zfmx.neokgbackend.service.DocumentService;
@@ -27,10 +30,15 @@ public class AdminController {
     @Resource
     private DocumentRefService documentRefService;
 
-//    @PostMapping(value = "/chat", produces = "text/html;charset=utf-8")
-//    public String chat(String message) {
-//        return aiServiceService.explain(message);
-//    }
+    @PostMapping(value = "/chat", produces = "text/html;charset=utf-8")
+    public String chat(String message) {
+        return aiServiceService.explain(message);
+    }
+
+    @GetMapping(value = "/ask/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public Flux<ServerSentEvent<String>> chatWithGraph(String message, String sessionId) {
+        return aiServiceService.askQuestion(message, sessionId);
+    }
 
     /**
      * 清空所有数据

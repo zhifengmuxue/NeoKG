@@ -1,13 +1,28 @@
 package top.zfmx.neokgbackend.service.impl;
 
+import com.google.gson.Gson;
 import jakarta.annotation.Resource;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.embedding.Embedding;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.embedding.EmbeddingResponse;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+import top.zfmx.neokgbackend.mapper.DocumentMapper;
+import top.zfmx.neokgbackend.pojo.entity.Document;
 import top.zfmx.neokgbackend.pojo.entity.meta.EntityType;
 import top.zfmx.neokgbackend.pojo.entity.meta.RelationType;
 import top.zfmx.neokgbackend.service.AiService;
+import top.zfmx.neokgbackend.service.GraphNeo4jService;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * @author li ma
@@ -18,6 +33,43 @@ public class AiServiceImpl implements AiService {
 
     @Resource
     private ChatModel chatModel;
+    @Resource
+    private GraphNeo4jService graphNeo4jService;
+    @Resource
+    private RedisTemplate<String, Object> redisTemplate;
+    @Resource
+    private EmbeddingModel embeddingModel;
+    @Resource
+    private DocumentMapper documentMapper;
+    @Resource
+    private Gson gson;
+
+    @Override
+    public Flux<ServerSentEvent<String>> askQuestion(String question, String sessionId) {
+        Long focusDocId = tryExtractDocId(question);
+        Map<String, Object> evidenceGraph = graphNeo4jService.findEvidenceSubgraph(focusDocId);
+
+        Prompt prompt = new Prompt(
+                List.of(
+                        new SystemMessage("你是知识图谱领域问答助手，必须严格基于证据回答。"),
+                        new UserMessage("问题：" + question + "\n证据：" + gson.toJson(evidenceGraph))
+                )
+        );
+
+        return chatModel.stream(prompt)
+                .map(resp -> ServerSentEvent.builder(
+                        resp.getResult().getOutput().getText()
+                ).build());
+    }
+
+
+    private Long tryExtractDocId(String q) {
+        EmbeddingResponse response = embeddingModel.embedForResponse(List.of(q));
+        Embedding queryVector = response.getResult();
+        Optional<Document> topDoc = documentMapper.findTopByVector(queryVector.getOutput());
+        return topDoc.map(Document::getId).orElse(null);
+    }
+
 
     @Override
     public String explain(String content) {

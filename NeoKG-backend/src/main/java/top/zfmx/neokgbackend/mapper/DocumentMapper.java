@@ -7,6 +7,8 @@ import org.apache.ibatis.annotations.Select;
 import top.zfmx.neokgbackend.pojo.entity.Document;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Vector;
 
 /**
@@ -14,12 +16,24 @@ import java.util.Vector;
  * @version 0.0.1
  **/
 @Mapper
-public interface DocumentMapper
-        extends BaseMapper<Document> {
+public interface DocumentMapper extends BaseMapper<Document> {
 
-    @Select("SELECT * FROM document ORDER BY vec <-> " +
-            "#{vec,typeHandler=top.zfmx.neokgbackend.handle.VectorTypeHandler}" +
-            " LIMIT #{limit}")
+    @Select("SELECT * FROM document " +
+            "ORDER BY vec <-> #{vec,typeHandler=top.zfmx.neokgbackend.handle.VectorTypeHandler} " +
+            "LIMIT #{limit}")
     List<Document> searchByVector(@Param("vec") Vector<Float> vec, @Param("limit") int limit);
 
+    @Select("SELECT * FROM document " +
+            "ORDER BY vec <-> #{vec,typeHandler=top.zfmx.neokgbackend.handle.VectorTypeHandler} " +
+            "LIMIT 1")
+    Optional<Document> findTopByVector(@Param("vec") float[] vec);
+
+    @Select("""
+        SELECT type, COUNT(*) AS count
+        FROM document
+        WHERE created_at >= NOW() - INTERVAL '7 days'
+        GROUP BY type
+    """)
+    List<Map<String, Object>> countDocumentsByTypeInLastWeek();
 }
+
