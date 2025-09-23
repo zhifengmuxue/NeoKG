@@ -22,7 +22,7 @@ import top.zfmx.neokgbackend.service.AiService;
 public class AdminController {
 
     @Resource
-    private AiService aiServiceService;
+    private AiService aiService;
     @Resource
     private KeywordService keywordService;
     @Resource
@@ -30,15 +30,15 @@ public class AdminController {
     @Resource
     private DocumentRefService documentRefService;
 
-    @PostMapping(value = "/chat", produces = "text/html;charset=utf-8")
-    public String chat(String message) {
-        return aiServiceService.explain(message);
-    }
+//    @PostMapping(value = "/chat", produces = "text/html;charset=utf-8")
+//    public String chat(String message) {
+//        return aiService.explain(message);
+//    }
 
-    @GetMapping(value = "/ask/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ServerSentEvent<String>> chatWithGraph(String message, String sessionId) {
-        return aiServiceService.askQuestion(message, sessionId);
-    }
+//    @GetMapping(value = "/ask/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+//    public Flux<ServerSentEvent<String>> chatWithGraph(String message, String sessionId) {
+//        return aiService.askQuestion(message, sessionId);
+//    }
 
     /**
      * 清空所有数据

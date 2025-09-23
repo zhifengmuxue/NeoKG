@@ -162,6 +162,7 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
         }
 
         // 1️⃣ 社区划分
+        graphRepository.ensureGraphExists();
         List<Map<String, Object>> results = graphRepository.detectCommunities();
 
         List<GraphNode> nodes = new ArrayList<>();
@@ -204,11 +205,8 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
         // 3️⃣ 缓存
         long ttl = BASE_TTL + ThreadLocalRandom.current().nextInt(120);
         redisTemplate.opsForValue().set(cacheKey, gson.toJson(graph), ttl, TimeUnit.SECONDS);
-
         return graph;
     }
-
-
 
     /**
      * 从 Neo4j 构建文档-关键词图
@@ -380,7 +378,7 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
             session.executeRead(tx -> {
                 // 查找文档节点及其相邻关键词
                 Result rs = tx.run("""
-                        MATCH (d:Document {id: $docId})-[:HAS_KEYWORD]->(k:Keyword)
+                        MATCH (d:DocumentNode {docId: $docId})-[:HAS_KEYWORD]->(k:KeywordNode)
                         RETURN d, k
                         """, Map.of("docId", docId));
 
@@ -391,27 +389,27 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
                     Node kwNode = record.get("k").asNode();
 
                     // 文档节点
-                    String docFrontendId = "doc-" + docNode.get("id").asLong();
-                    if (!idMap.containsKey("doc-" + docNode.get("id").asLong())) {
+                    String docFrontendId = "doc-" + docNode.get("id").asString();
+                    if (!idMap.containsKey(docFrontendId)) {
                         Map<String, Object> docMap = Map.of(
                                 "id", docFrontendId,
                                 "label", docNode.get("title").asString("文档"),
                                 "type", "Document"
                         );
                         nodes.add(docMap);
-                        idMap.put("doc-" + docNode.get("id").asLong(), docFrontendId);
+                        idMap.put(docFrontendId, docFrontendId);
                     }
 
                     // 关键词节点
-                    String kwFrontendId = "kw-" + kwNode.get("id").asLong();
-                    if (!idMap.containsKey("kw-" + kwNode.get("id").asLong())) {
+                    String kwFrontendId = "kw-" + kwNode.get("id").asString();
+                    if (!idMap.containsKey(kwFrontendId)) {
                         Map<String, Object> kwMap = Map.of(
                                 "id", kwFrontendId,
                                 "label", kwNode.get("name").asString("关键词"),
                                 "type", "Keyword"
                         );
                         nodes.add(kwMap);
-                        idMap.put("kw-" + kwNode.get("id").asLong(), kwFrontendId);
+                        idMap.put(kwFrontendId, kwFrontendId);
                     }
 
                     // 边

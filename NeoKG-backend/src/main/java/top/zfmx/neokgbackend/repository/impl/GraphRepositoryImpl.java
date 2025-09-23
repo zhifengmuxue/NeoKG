@@ -78,4 +78,30 @@ public class GraphRepositoryImpl implements GraphRepository {
                 .one()
                 .orElse(Map.of());
     }
+
+    @Override
+    public void ensureGraphExists() {
+        String existsQuery = "CALL gds.graph.exists('myGraph') YIELD exists";
+        Boolean exists = neo4jClient.query(existsQuery)
+                .fetchAs(Boolean.class)
+                .mappedBy((typeSystem, record) -> record.get("exists").asBoolean())
+                .one()
+                .orElse(false);
+
+        if (!exists) {
+            String projectQuery = """
+            CALL gds.graph.project(
+              'myGraph',
+              ['Document', 'Keyword'],  // 节点标签
+              {
+                HAS_KEYWORD: {
+                  orientation: 'UNDIRECTED'
+                }
+              }
+            )
+        """;
+            neo4jClient.query(projectQuery).run();
+        }
+    }
+
 }

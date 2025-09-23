@@ -30,4 +30,8 @@ public interface DocumentService
     boolean updateByIdWithVec(Document document);
 
     List<Map<String, Object>> countDocumentsByTypeInLastWeek();
+
+    List<Map<String, Object>> getStatsLastWeek();
+
+    void refreshStatsLastWeek();
 }

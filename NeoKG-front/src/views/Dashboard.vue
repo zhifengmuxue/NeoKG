@@ -46,7 +46,7 @@
       <div class="stat-item" :style="getStatItemStyle()">
         <div class="stat-icon file-icon" :style="getIconStyle('file')">📁</div>
         <div class="stat-content">
-          <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">文件数量</div>
+          <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">文档实体量</div>
           <div class="stat-value" :style="{ color: isDark ? '#ffffff' : '#333' }">
             {{ fileLoading ? '加载中...' : fileCount }}
           </div>
@@ -57,7 +57,7 @@
     <!-- 图表区域 -->
     <div class="charts-container">
       <div class="chart-section" :style="getChartSectionStyle()">
-        <h3 :style="getChartTitleStyle()">文件量趋势</h3>
+        <h3 :style="getChartTitleStyle()">文档实体量趋势</h3>
         <!-- ECharts 图表容器 -->
         <div ref="fileChartRef" class="chart-container"></div>
       </div>
@@ -70,7 +70,7 @@
     </div>
     
     <!-- 最近活动 -->
-    <div class="activity-section" :style="getActivitySectionStyle()">
+    <!-- <div class="activity-section" :style="getActivitySectionStyle()">
       <h3 :style="getChartTitleStyle()">最近活动</h3>
       <div class="activity-table">
         <div class="table-header" :style="getTableHeaderStyle()">
@@ -78,9 +78,8 @@
           <span>时间</span>
           <span>状态</span>
         </div>
-        <!-- 表格内容 -->
       </div>
-    </div>
+    </div> -->
   </div>
 </template>
 
@@ -101,11 +100,28 @@ const loading = ref(false)
 const fileLoading = ref(false)
 const fileCount = ref<string>('0')
 
+// 文件统计数据加载状态
+const fileStatsLoading = ref(false)
+
 // 降维数据加载状态
 const dimReduceLoading = ref(false)
 const dimReplaceLoading = ref(false)
 // 异常检测加载状态
 const anomalyLoading = ref(false)
+
+// 文件统计数据类型定义
+interface FileStatItem {
+  count: number
+  type: string
+  day: string
+}
+
+interface FileStatsResponse {
+  code: string
+  message: string | null
+  data: FileStatItem[]
+  timestamp: number
+}
 
 // 降维数据类型定义
 interface Vec2D {
@@ -145,6 +161,8 @@ interface AnomalyResponse {
   timestamp: number
 }
 
+// 文件统计数据状态
+const fileStatsData = ref<FileStatItem[]>([])
 // 降维数据状态
 const dimReduceData = ref<Vec2D[]>([])
 // 异常检测数据状态
@@ -190,9 +208,49 @@ const metricsData = ref<MetricsData>({
 // API配置
 const API_BASE_URL = import.meta.env.DEV ? '/api/graph/analysis/metrics' : 'http://localhost:8080/api/graph/analysis/metrics'
 const FILE_COUNT_API_URL = import.meta.env.DEV ? '/api/file/num' : 'http://localhost:8080/api/file/num'
+const FILE_STATS_API_URL = import.meta.env.DEV ? '/api/file/stats/weekly' : 'http://localhost:8080/api/file/stats/weekly'
 const DIM_REDUCE_API_URL = import.meta.env.DEV ? '/api/dim/all' : 'http://localhost:8080/api/dim/all'
 const DIM_REPLACE_API_URL = import.meta.env.DEV ? '/api/dim/replaceAll' : 'http://localhost:8080/api/dim/replaceAll'
 const ANOMALY_API_URL = import.meta.env.DEV ? '/api/graph/analysis/anomalies' : 'http://localhost:8080/api/graph/analysis/anomalies'
+
+// 获取文件统计数据
+const fetchFileStats = async (): Promise<void> => {
+  fileStatsLoading.value = true
+  try {
+    console.log('正在获取文件统计数据...')
+    const response = await fetch(FILE_STATS_API_URL, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const result: FileStatsResponse = await response.json()
+    console.log('文件统计数据获取成功:', result)
+    
+    if (result.code === 'SUCCESS') {
+      fileStatsData.value = result.data
+      console.log('文件统计数据:', result.data)
+    } else {
+      throw new Error(result.message || '获取文件统计数据失败')
+    }
+  } catch (error) {
+    console.error('获取文件统计数据失败:', error)
+    
+    // 使用模拟数据作为备用
+    fileStatsData.value = [
+      { count: 2, type: 'CSV', day: '2025-09-22T16:00:00.000+00:00' },
+      { count: 1, type: 'MARKDOWN', day: '2025-09-22T16:00:00.000+00:00' },
+      { count: 5, type: 'WORD', day: '2025-09-22T16:00:00.000+00:00' }
+    ]
+  } finally {
+    fileStatsLoading.value = false
+  }
+}
 
 // 获取异常检测数据
 const fetchAnomalies = async (): Promise<void> => {
@@ -415,17 +473,146 @@ const handleRestore = async (chart: echarts.ECharts) => {
   }
 }
 
+// 处理文件统计数据，转换为图表需要的格式
+const processFileStatsData = () => {
+  // 生成最近7天的日期数组
+  const generateLast7Days = () => {
+    const days = []
+    const today = new Date()
+    
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today)
+      date.setDate(date.getDate() - i)
+      // 格式化为中文简短日期
+      const formatted = date.toLocaleDateString('zh-CN', { 
+        month: 'short', 
+        day: 'numeric' 
+      })
+      days.push({
+        formatted: formatted,
+        fullDate: date.toISOString().split('T')[0], // YYYY-MM-DD 格式用于匹配
+        dateObj: new Date(date.getFullYear(), date.getMonth(), date.getDate()) // 用于日期比较
+      })
+    }
+    return days
+  }
+
+  const last7Days = generateLast7Days()
+  const categories = last7Days.map(day => day.formatted)
+
+  // 如果没有数据，返回空数据的7天
+  if (!fileStatsData.value || fileStatsData.value.length === 0) {
+    return {
+      categories: categories,
+      series: []
+    }
+  }
+
+  // 获取所有文件类型
+  const fileTypes = [...new Set(fileStatsData.value.map(item => item.type))]
+  
+  // 类型映射
+  const typeMapping: Record<string, string> = {
+    'MARKDOWN': 'MD',
+    'CSV': 'CSV',
+    'JSON': 'JSON',
+    'XML': 'XML',
+    'PDF': 'PDF',
+    'WORD': 'Word',
+    'TXT': 'TXT',
+    'DOCX': 'Word'
+  }
+
+  // 构建系列数据
+  const series = fileTypes.map(type => {
+    const displayName = typeMapping[type] || type
+    
+    // 为每个文件类型生成7天的数据
+    const data = last7Days.map(dayInfo => {
+      // 查找对应日期和类型的数据
+      const item = fileStatsData.value.find(stat => {
+        try {
+          // 处理新的日期格式 "Sep 23, 2025, 12:00:00 AM"
+          const statDate = new Date(stat.day)
+          const statDateOnly = new Date(statDate.getFullYear(), statDate.getMonth(), statDate.getDate())
+          
+          // 比较日期是否相同（只比较年月日，忽略时分秒）
+          return stat.type === type && 
+                 statDateOnly.getTime() === dayInfo.dateObj.getTime()
+        } catch (error) {
+          console.error('日期解析错误:', stat.day, error)
+          return false
+        }
+      })
+      
+      // 如果找到数据就返回count，否则返回0
+      // 注意 count 现在可能是浮点数，需要取整
+      return item ? Math.floor(item.count) : 0
+    })
+
+    return {
+      name: displayName,
+      type: 'line',
+      smooth: true,
+      data: data
+    }
+  })
+
+  // 如果没有任何文件类型，返回一个默认的全0系列
+  if (series.length === 0) {
+    return {
+      categories: categories,
+      series: [{
+        name: '暂无数据',
+        type: 'line',
+        smooth: true,
+        data: new Array(7).fill(0)
+      }]
+    }
+  }
+
+  return {
+    categories: categories,
+    series: series
+  }
+}
+
 // 初始化文件量趋势图表
 const initFileChart = () => {
-  if (!fileChartRef.value) return
+  if (!fileChartRef.value) {
+    console.log('fileChartRef 不存在，跳过初始化')
+    return
+  }
+  
+  console.log('开始初始化文件统计图表...')
   
   // 销毁旧实例
   const existingChart = echarts.getInstanceByDom(fileChartRef.value)
   if (existingChart) {
+    console.log('销毁现有图表实例')
     existingChart.dispose()
   }
   
   const myChart = echarts.init(fileChartRef.value, isDark.value ? 'dark' : 'light')
+  console.log('创建新的图表实例:', myChart.id)
+  
+  // 显示加载状态
+  if (fileStatsLoading.value) {
+    myChart.showLoading({
+      color: '#1890ff',
+      textColor: isDark.value ? '#ffffff' : '#333',
+      maskColor: isDark.value ? 'rgba(38, 38, 38, 0.8)' : 'rgba(255, 255, 255, 0.8)'
+    })
+  }
+  
+  // 处理数据
+  const chartData = processFileStatsData()
+  console.log('图表数据处理完成:', chartData)
+  
+  if (!fileStatsLoading.value) {
+    myChart.hideLoading()
+  }
+  
   const option: EChartsOption = {
     tooltip: {
       trigger: 'axis',
@@ -433,10 +620,18 @@ const initFileChart = () => {
       borderColor: isDark.value ? '#434343' : '#d9d9d9',
       textStyle: {
         color: isDark.value ? '#ffffff' : '#333'
+      },
+      formatter: (params: any) => {
+        let result = `${params[0].axisValue}<br/>`
+        params.forEach((param: any) => {
+          const marker = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${param.color};"></span>`
+          result += `${marker}${param.seriesName}: ${param.value} 个文件<br/>`
+        })
+        return result
       }
     },
     legend: {
-      data: ['MD', 'CSV', 'JSON', 'XML', 'PDF', 'Word'],
+      data: chartData.series.map(s => s.name),
       textStyle: {
         color: isDark.value ? '#ffffff' : '#333'
       }
@@ -449,7 +644,36 @@ const initFileChart = () => {
     },
     toolbox: {
       feature: {
-        saveAsImage: {}
+        restore: {
+          title: '刷新数据',
+          onclick: function() {
+            console.log('=== 文件统计图表刷新按钮被点击 ===')
+            
+            // 显示加载状态
+            this.showLoading && this.showLoading({
+              color: '#1890ff',
+              textColor: isDark.value ? '#ffffff' : '#333',
+              maskColor: isDark.value ? 'rgba(38, 38, 38, 0.8)' : 'rgba(255, 255, 255, 0.8)'
+            })
+            
+            // 重新获取数据
+            fetchFileStats()
+              .then(() => {
+                console.log('文件统计数据重新获取完成')
+                setTimeout(() => {
+                  console.log('重新初始化文件图表')
+                  initFileChart()
+                }, 100)
+              })
+              .catch(error => {
+                console.error('刷新数据失败:', error)
+                this.hideLoading && this.hideLoading()
+              })
+          }
+        },
+        saveAsImage: {
+          title: '保存为图片'
+        }
       },
       iconStyle: {
         borderColor: isDark.value ? '#ffffff' : '#333'
@@ -458,7 +682,7 @@ const initFileChart = () => {
     xAxis: {
       type: 'category',
       boundaryGap: false,
-      data: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      data: chartData.categories,
       axisLine: {
         lineStyle: {
           color: isDark.value ? '#434343' : '#d9d9d9'
@@ -470,13 +694,18 @@ const initFileChart = () => {
     },
     yAxis: {
       type: 'value',
+      min: 0,
+      minInterval: 1,
       axisLine: {
         lineStyle: {
           color: isDark.value ? '#434343' : '#d9d9d9'
         }
       },
       axisLabel: {
-        color: isDark.value ? '#b3b3b3' : '#666'
+        color: isDark.value ? '#b3b3b3' : '#666',
+        formatter: (value: number) => {
+          return Math.floor(value).toString()
+        }
       },
       splitLine: {
         lineStyle: {
@@ -484,47 +713,34 @@ const initFileChart = () => {
         }
       }
     },
-    series: [
-      {
-        name: 'MD',
-        type: 'line',
-        smooth: true,
-        data: [120, 132, 101, 134, 90, 230, 210]
-      },
-      {
-        name: 'CSV',
-        type: 'line',
-        smooth: true,
-        data: [220, 182, 191, 234, 290, 330, 310]
-      },
-      {
-        name: 'JSON',
-        type: 'line',
-        smooth: true,
-        data: [150, 232, 201, 154, 190, 330, 410]
-      },
-      {
-        name: 'XML',
-        type: 'line',
-        smooth: true,
-        data: [320, 332, 301, 334, 390, 330, 320]
-      },
-      {
-        name: 'PDF',
-        type: 'line',
-        smooth: true,
-        data: [820, 932, 901, 934, 1290, 1330, 1320]
-      },
-      {
-        name: 'Word',
-        type: 'line',
-        smooth: true,
-        data: [420, 532, 501, 534, 690, 730, 620]
-      }
-    ]
+    series: chartData.series
   }
   
   myChart.setOption(option)
+  console.log('图表配置设置完成')
+  
+  // 添加窗口大小变化监听
+  const handleResize = () => {
+    if (myChart && !myChart.isDisposed()) {
+      myChart.resize()
+    }
+  }
+  
+  window.addEventListener('resize', handleResize)
+  
+  // 清理函数
+  const cleanup = () => {
+    console.log('清理图表资源')
+    window.removeEventListener('resize', handleResize)
+    if (myChart && !myChart.isDisposed()) {
+      myChart.dispose()
+    }
+  }
+  
+  // 将清理函数存储到图表实例上
+  ;(myChart as any).cleanup = cleanup
+  
+  console.log('文件统计图表初始化完成')
 }
 
 // 初始化查询分布图表
@@ -549,7 +765,6 @@ const initQueryChart = () => {
   // 等待降维数据加载完成或使用现有数据
   const waitForData = () => {
     if (dimReduceLoading.value || dimReplaceLoading.value) {
-      // 如果数据还在加载，等待一段时间后重试
       setTimeout(waitForData, 500)
       return
     }
@@ -672,10 +887,9 @@ const initQueryChart = () => {
               show: true,
               formatter: '{b}',
               position: 'top',
-              textStyle: {
-                color: isDark.value ? '#ffffff' : '#333',
-                fontSize: 12
-              }
+              // 修复：直接在 label 中配置文本样式，不使用 textStyle
+              color: isDark.value ? '#ffffff' : '#333',
+              fontSize: 12
             }
           }
         }
@@ -684,23 +898,14 @@ const initQueryChart = () => {
     
     myChart.setOption(option)
     
-    // 添加点击事件（只添加一次）
-    myChart.off('click') // 先移除可能存在的旧事件
+    // 添加点击事件
+    myChart.off('click')
     myChart.on('click', (params: any) => {
       console.log('点击了关键词:', params.data.keyword, '坐标:', params.data.value)
     })
   }
   
-  // 开始等待数据
   waitForData()
-}
-
-// 重新初始化图表
-const reinitCharts = () => {
-  setTimeout(() => {
-    initFileChart()
-    initQueryChart()
-  }, 100)
 }
 
 // 格式化函数
@@ -811,6 +1016,30 @@ watch(isDarkMode, () => {
   reinitCharts()
 })
 
+// 监听文件统计数据变化，重新初始化文件图表
+watch(fileStatsData, () => {
+  console.log('文件统计数据已更新，重新初始化文件图表')
+  // 增加延迟，确保数据更新完成
+  setTimeout(() => {
+    if (fileChartRef.value) {
+      initFileChart()
+    }
+  }, 200)
+}, { deep: true })
+
+// 优化重新初始化图表的逻辑
+const reinitCharts = () => {
+  console.log('重新初始化所有图表')
+  setTimeout(() => {
+    if (fileChartRef.value) {
+      initFileChart()
+    }
+    if (queryChartRef.value) {
+      initQueryChart()
+    }
+  }, 200)
+}
+
 // 组件挂载时
 onMounted(async () => {
   console.log('Dashboard组件已挂载，开始初始化...')
@@ -827,6 +1056,7 @@ onMounted(async () => {
     await Promise.all([
       fetchMetrics(),
       fetchFileCount(),
+      fetchFileStats(), // 新增：获取文件统计数据
       fetchDimReduceData(),
       fetchAnomalies()
     ])
@@ -843,7 +1073,9 @@ onUnmounted(() => {
   // 销毁图表实例
   if (fileChartRef.value) {
     const fileChart = echarts.getInstanceByDom(fileChartRef.value)
-    if (fileChart) {
+    if (fileChart && (fileChart as any).cleanup) {
+      ;(fileChart as any).cleanup()
+    } else if (fileChart) {
       fileChart.dispose()
     }
   }

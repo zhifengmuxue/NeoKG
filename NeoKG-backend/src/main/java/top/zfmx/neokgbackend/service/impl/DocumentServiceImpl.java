@@ -5,11 +5,14 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.google.common.reflect.TypeToken;
+import com.google.gson.Gson;
 import com.opencsv.exceptions.CsvValidationException;
 
 import jakarta.annotation.Resource;
 import org.apache.tika.exception.TikaException;
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -26,6 +29,7 @@ import top.zfmx.neokgbackend.service.DocumentService;
 import top.zfmx.neokgbackend.utils.KeywordMatcher;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -45,9 +49,14 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
     private DocumentRefMapper documentRefMapper;
     @Resource
     private EmbeddingModel embeddingModel;
-
+    @Resource
+    private Gson gson;
     @Resource
     private Snowflake snowflake;
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
+
+    private static final String CACHE_KEY = "doc:stats:last7days";
 
     @Override
     @Transactional(rollbackFor = Exception.class)
@@ -192,5 +201,30 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
         return documentMapper.countDocumentsByTypeInLastWeek();
     }
 
+    @Override
+    public List<Map<String, Object>> getStatsLastWeek() {
+        // 先查缓存
+        String cached = stringRedisTemplate.opsForValue().get(CACHE_KEY);
+        if (cached != null) {
+            return gson.fromJson(cached, new TypeToken<List<Map<String, Object>>>(){}.getType());
+        }
+
+        // 缓存没有 → 查数据库
+        List<Map<String, Object>> stats = documentMapper.countDocumentsByTypeInLastWeek();
+
+        // 放缓存（设置过期时间，比如 1 小时）
+        stringRedisTemplate.opsForValue().set(CACHE_KEY, gson.toJson(stats), Duration.ofHours(1));
+
+        return stats;
+    }
+
+    @Override
+    public void refreshStatsLastWeek() {
+        // 查数据库
+        List<Map<String, Object>> stats = documentMapper.countDocumentsByTypeInLastWeek();
+
+        // 更新缓存（比如 1 小时有效期）
+        stringRedisTemplate.opsForValue().set(CACHE_KEY, gson.toJson(stats), Duration.ofHours(1));
+    }
 
 }

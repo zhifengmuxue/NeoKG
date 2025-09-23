@@ -23,16 +23,20 @@ public interface DocumentMapper extends BaseMapper<Document> {
             "LIMIT #{limit}")
     List<Document> searchByVector(@Param("vec") Vector<Float> vec, @Param("limit") int limit);
 
-    @Select("SELECT * FROM document " +
-            "ORDER BY vec <-> #{vec,typeHandler=top.zfmx.neokgbackend.handle.VectorTypeHandler} " +
+    @Select("SELECT * FROM document ORDER BY vec <-> " +
+            "#{vec,typeHandler=top.zfmx.neokgbackend.handle.FloatArrayTypeHandler} " +
             "LIMIT 1")
     Optional<Document> findTopByVector(@Param("vec") float[] vec);
 
     @Select("""
-        SELECT type, COUNT(*) AS count
+        SELECT 
+            date_trunc('day', created_at) AS day,
+            type,
+            COUNT(*) AS count
         FROM document
         WHERE created_at >= NOW() - INTERVAL '7 days'
-        GROUP BY type
+        GROUP BY day, type
+        ORDER BY day ASC, type
     """)
     List<Map<String, Object>> countDocumentsByTypeInLastWeek();
 }

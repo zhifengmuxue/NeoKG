@@ -67,9 +67,9 @@ public class GraphController {
      */
     @GetMapping("/path")
     public Map<String, Object> findPath(
-            @RequestParam String startType, // DOCUMENT / KEYWORD
+            @RequestParam(defaultValue = "KEYWORD") String startType, // DOCUMENT / KEYWORD
             @RequestParam Long startId,
-            @RequestParam String endType,   // DOCUMENT / KEYWORD
+            @RequestParam(defaultValue = "KEYWORD") String endType,   // DOCUMENT / KEYWORD
             @RequestParam Long endId
     ) {
         return pathService.getPath(startType, startId, endType, endId);

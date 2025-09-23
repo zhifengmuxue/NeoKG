@@ -48,6 +48,7 @@ public class DocumentController {
         MatchMode matchMode = MatchMode.fromString(matchModeStr);
         List<Document> documents = documentService.parseAndSaveFile(file, threshold, matchMode);
         dimReduceService.reduceAndReplaceAll();
+        documentService.refreshStatsLastWeek();
         return Result.ok(documents);
     }
 
@@ -81,6 +82,13 @@ public class DocumentController {
 
     @GetMapping("/stats/weekly")
     public Result<List<Map<String, Object>>> getWeeklyStats() {
-        return Result.ok(documentService.countDocumentsByTypeInLastWeek());
+        return Result.ok(documentService.getStatsLastWeek());
+    }
+
+    @PostMapping("/stats/weekly/refresh")
+    public Result<String> refreshWeeklyStats() {
+        documentService.refreshStatsLastWeek();
+        System.out.println("刷新完成");
+        return Result.ok("刷新完成");
     }
 }

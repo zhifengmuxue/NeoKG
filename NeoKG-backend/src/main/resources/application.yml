@@ -6,8 +6,10 @@ spring:
       max-file-size: 100MB
       max-request-size: 100MB
       enabled: true
+  jackson:
+    time-zone: Asia/Shanghai
   datasource:
-    url: jdbc:postgresql://localhost:5432/NeoKG
+    url: jdbc:postgresql://localhost:5432/NeoKG?stringtype=unspecified&serverTimezone=Asia/Shanghai
     username: NeoKG
     password: NeoKG
     driver-class-name: org.postgresql.Driver

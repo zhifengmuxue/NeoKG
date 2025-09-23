@@ -20,4 +20,6 @@ public interface GraphRepository {
     List<Map<String, Object>> findDocKeywordRelations();
 
     Map<String, Object> findPath(String startType, Long startId, String endType, Long endId);
+
+    void ensureGraphExists();
 }

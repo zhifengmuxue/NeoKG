@@ -1,7 +1,10 @@
 package top.zfmx.neokgbackend.service.impl;
 
+import com.google.common.reflect.TypeToken;
 import com.google.gson.Gson;
 import jakarta.annotation.Resource;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
@@ -20,9 +23,8 @@ import top.zfmx.neokgbackend.pojo.entity.meta.RelationType;
 import top.zfmx.neokgbackend.service.AiService;
 import top.zfmx.neokgbackend.service.GraphNeo4jService;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author li ma
@@ -46,28 +48,70 @@ public class AiServiceImpl implements AiService {
 
     @Override
     public Flux<ServerSentEvent<String>> askQuestion(String question, String sessionId) {
-        Long focusDocId = tryExtractDocId(question);
+        // Redis key
+        String contextKey = "chat:context:" + sessionId;
+
+        // 安全获取上下文，第一次对话也不会 NPE
+        Object contextObj = redisTemplate.opsForValue().get(contextKey);
+        List<Map<String, String>> context = contextObj instanceof String contextJson
+                ? gson.fromJson(contextJson, new TypeToken<List<Map<String, String>>>() {}.getType())
+                : new ArrayList<>();
+
+        // 限制上下文最大轮数
+        final int maxHistory = 5;
+        int start = Math.max(0, context.size() - maxHistory);
+        List<Map<String, String>> truncatedContext = new ArrayList<>(context.subList(start, context.size()));
+
+        // 文本向量检索
+        EmbeddingResponse response = embeddingModel.embedForResponse(List.of(question));
+        float[] queryVector = response.getResult().getOutput();
+        Optional<Document> topDoc = documentMapper.findTopByVector(queryVector);
+        Long focusDocId = topDoc.map(Document::getId).orElse(null);
+
+        // 构建证据图
         Map<String, Object> evidenceGraph = graphNeo4jService.findEvidenceSubgraph(focusDocId);
 
-        Prompt prompt = new Prompt(
-                List.of(
-                        new SystemMessage("你是知识图谱领域问答助手，必须严格基于证据回答。"),
-                        new UserMessage("问题：" + question + "\n证据：" + gson.toJson(evidenceGraph))
-                )
-        );
+        // 获取文档内容
+        Document doc = focusDocId != null ? documentMapper.selectById(focusDocId) : null;
 
+        // 构建 prompt，将上下文加入
+        List<Message> messages = new ArrayList<>();
+        messages.add(new SystemMessage("你是知识图谱领域问答助手，必须严格基于证据回答。"));
+
+        // 添加历史上下文
+        for (Map<String, String> round : truncatedContext) {
+            messages.add(new UserMessage(round.get("question")));
+            messages.add(new AssistantMessage(round.get("answer")));
+        }
+
+        // 当前问题
+        messages.add(new UserMessage(
+                "问题：" + question +
+                        "\n证据：" + gson.toJson(evidenceGraph) +
+                        (doc != null ? ("\n相关文档内容：" + doc.getContent()) : "") +
+                        "\n请基于以上内容，简洁、专业、准确地回答用户的问题。" +
+                        "并阐明你是从图谱中获取到了怎样的知识证明了你的回答" +
+                        "或者是从文档内容中找到了相关的内容进行回答" +
+                        "如果无法从中得到答案，请回复“抱歉，我无法回答这个问题。”"
+        ));
+
+        Prompt prompt = new Prompt(messages);
+
+        // 流式返回 + 更新上下文
         return chatModel.stream(prompt)
-                .map(resp -> ServerSentEvent.builder(
-                        resp.getResult().getOutput().getText()
-                ).build());
-    }
+                .map(resp -> {
+                    String answer = Optional.ofNullable(resp.getResult().getOutput())
+                            .map(output -> output.getText())
+                            .orElse("抱歉，未能生成答案。");
 
+                    // 更新上下文（保留最近 maxHistory 轮）
+                    truncatedContext.add(Map.of("question", question, "answer", answer));
 
-    private Long tryExtractDocId(String q) {
-        EmbeddingResponse response = embeddingModel.embedForResponse(List.of(q));
-        Embedding queryVector = response.getResult();
-        Optional<Document> topDoc = documentMapper.findTopByVector(queryVector.getOutput());
-        return topDoc.map(Document::getId).orElse(null);
+                    // 保存到 Redis，设置 TTL
+                    redisTemplate.opsForValue().set(contextKey, gson.toJson(truncatedContext), 24, TimeUnit.HOURS);
+
+                    return ServerSentEvent.builder(answer).build();
+                });
     }
 
 
@@ -94,17 +138,17 @@ public class AiServiceImpl implements AiService {
                 "5. 注意一定要存在keywords\n"+
                 "6. 我给出实体结构不能出现空的情况" +
                 "7. 请保证每一个属性均有值，不能为null\n" +
+                "8. 文档实体的title和关键词的name不能重复\n" +
                 "请直接输出 JSON 数组，不要输出解释性文字。\n" +
                 "文本内容：\n" + content;
 
         return chatModel.call(prompt);
     }
 
+
     @Override
     public String explainMeta(String content, List<EntityType> entityTypes, List<RelationType> relationTypes) {
         StringBuilder sb = new StringBuilder();
-//        System.out.println("实体类型: " + entityTypes);
-//        System.out.println("关系类型: " + relationTypes);
 
         sb.append("你是一个知识图谱抽取助手。请根据用户定义的元模型，从文本中提取实体和关系。\n\n");
 
