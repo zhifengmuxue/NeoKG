@@ -6,7 +6,6 @@ import {
   SearchOutlined,
   DashboardOutlined,
   UploadOutlined,
-  SettingOutlined,
   BulbOutlined,
   LogoutOutlined,
   RightOutlined,
@@ -38,8 +37,7 @@ const selectedKeys = computed(() => {
     '/dashboard': ['3'],
     '/upload': ['4'],
     '/keywords': ['5'],
-    '/documents': ['6'],
-    '/settings': ['settings']
+    '/documents': ['6']
   }
   return routeMap[route.path] || ['3']
 })
@@ -97,8 +95,7 @@ const handleMenuClick = (key: string): void => {
     '3': '/dashboard',
     '4': '/upload',
     '5': '/keywords',
-    '6': '/documents',
-    'settings': '/settings'
+    '6': '/documents'
   }
   if (routeMap[key]) {
     router.push(routeMap[key])
@@ -217,10 +214,6 @@ onMounted(() => {
               style="border-right: none;"
               @click="(e: { key: string }) => handleMenuClick(e.key)"
             >
-              <a-menu-item key="settings" class="menu-item">
-                <setting-outlined />
-                <span>设置</span>
-              </a-menu-item>
               <a-menu-item key="theme" class="menu-item">
                 <bulb-outlined />
                 <span>{{ isDarkMode ? '浅色主题' : '深色主题' }}</span>
@@ -268,37 +261,20 @@ onMounted(() => {
             欢迎使用 NeoKG 管理平台
           </div>
           
-          <!-- 用户信息区域 -->
+          <!-- 用户头像图标 - 仅显示图标，无下拉菜单 -->
           <div class="user-info" :style="{ display: 'flex', alignItems: 'center', gap: '12px' }">
             <span :style="{ color: themeStyles.textColor, fontSize: '14px' }">
               {{ userDisplayName }}
             </span>
-            <a-dropdown placement="bottomRight">
-              <div class="user-avatar" style="cursor: pointer;">
-                <a-avatar 
-                  :size="36" 
-                  :src="userAvatar" 
-                  :style="{ backgroundColor: '#1890ff' }"
-                >
-                  <template #icon>
-                    <user-outlined />
-                  </template>
-                </a-avatar>
-              </div>
-              <template #overlay>
-                <a-menu>
-                  <a-menu-item key="profile" @click="router.push('/settings')">
-                    <user-outlined />
-                    <span>个人资料</span>
-                  </a-menu-item>
-                  <a-menu-divider />
-                  <a-menu-item key="logout" @click="handleLogout">
-                    <logout-outlined />
-                    <span>退出登录</span>
-                  </a-menu-item>
-                </a-menu>
+            <a-avatar 
+              :size="36" 
+              :src="userAvatar" 
+              :style="{ backgroundColor: '#1890ff' }"
+            >
+              <template #icon>
+                <user-outlined />
               </template>
-            </a-dropdown>
+            </a-avatar>
           </div>
         </div>
       </a-layout-header>
@@ -406,14 +382,6 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.user-avatar {
-  transition: all 0.3s;
-}
-
-.user-avatar:hover {
-  transform: scale(1.05);
 }
 
 /* 深度样式 */

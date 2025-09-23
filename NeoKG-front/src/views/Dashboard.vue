@@ -3,7 +3,7 @@
     <!-- 统计卡片区域 -->
     <div class="stats-container">
       <div class="stat-item" :style="getStatItemStyle()">
-        <div class="stat-icon density-icon">🕸️</div>
+        <div class="stat-icon density-icon" :style="getIconStyle('density')">🕸️</div>
         <div class="stat-content">
           <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">图谱密度</div>
           <div class="stat-value" :style="{ color: isDark ? '#ffffff' : '#333' }">
@@ -13,7 +13,7 @@
       </div>
       
       <div class="stat-item" :style="getStatItemStyle()">
-        <div class="stat-icon connectivity-icon">🔗</div>
+        <div class="stat-icon connectivity-icon" :style="getIconStyle('connectivity')">🔗</div>
         <div class="stat-content">
           <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">连通组件</div>
           <div class="stat-value" :style="{ color: isDark ? '#ffffff' : '#333' }">
@@ -22,9 +22,9 @@
         </div>
       </div>
       
-      <!-- 新增：异常检测卡片 -->
+      <!-- 异常检测卡片 -->
       <div class="stat-item" :style="getStatItemStyle()">
-        <div class="stat-icon anomaly-icon">⚠️</div>
+        <div class="stat-icon anomaly-icon" :style="getIconStyle('anomaly')">⚠️</div>
         <div class="stat-content">
           <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">异常检测</div>
           <div class="stat-value" :style="{ color: anomalyLoading ? (isDark ? '#ffffff' : '#333') : getAnomalyColor() }">
@@ -34,7 +34,7 @@
       </div>
       
       <div class="stat-item" :style="getStatItemStyle()">
-        <div class="stat-icon isolated-icon">⚪</div>
+        <div class="stat-icon isolated-icon" :style="getIconStyle('isolated')">⚪</div>
         <div class="stat-content">
           <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">孤立结点比例</div>
           <div class="stat-value" :style="{ color: isDark ? '#ffffff' : '#333' }">
@@ -44,7 +44,7 @@
       </div>
       
       <div class="stat-item" :style="getStatItemStyle()">
-        <div class="stat-icon file-icon">📁</div>
+        <div class="stat-icon file-icon" :style="getIconStyle('file')">📁</div>
         <div class="stat-content">
           <div class="stat-label" :style="{ color: isDark ? '#b3b3b3' : '#666' }">文件数量</div>
           <div class="stat-value" :style="{ color: isDark ? '#ffffff' : '#333' }">
@@ -54,7 +54,6 @@
       </div>
     </div>
     
-    <!-- 其他内容保持不变 -->
     <!-- 图表区域 -->
     <div class="charts-container">
       <div class="chart-section" :style="getChartSectionStyle()">
@@ -86,8 +85,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue'
 import * as echarts from 'echarts'
+import { isDarkMode } from '@/stores/theme'
 
 type EChartsOption = echarts.EChartsOption
 
@@ -95,20 +95,19 @@ type EChartsOption = echarts.EChartsOption
 const fileChartRef = ref<HTMLDivElement>()
 const queryChartRef = ref<HTMLDivElement>()
 
-// 主题状态和数据状态
-const isDark = ref(false)
+// 使用全局主题状态
+const isDark = computed(() => isDarkMode.value)
 const loading = ref(false)
 const fileLoading = ref(false)
 const fileCount = ref<string>('0')
 
-// 新增：降维数据加载状态
+// 降维数据加载状态
 const dimReduceLoading = ref(false)
-// 新增：降维重新生成状态
 const dimReplaceLoading = ref(false)
-// 新增：异常检测加载状态
+// 异常检测加载状态
 const anomalyLoading = ref(false)
 
-// 修改：降维数据类型定义 - 适配实际API响应
+// 降维数据类型定义
 interface Vec2D {
   id: number
   name: string
@@ -123,7 +122,7 @@ interface DimReduceResponse {
   timestamp: number
 }
 
-// 新增：降维替换接口响应类型
+// 降维替换接口响应类型
 interface DimReplaceResponse {
   code: string
   message: string | null
@@ -131,7 +130,7 @@ interface DimReplaceResponse {
   timestamp: number
 }
 
-// 新增：异常检测数据类型
+// 异常检测数据类型
 interface AnomalyData {
   selfLoops: any[]
   isolatedNodes: any[]
@@ -146,9 +145,9 @@ interface AnomalyResponse {
   timestamp: number
 }
 
-// 新增：降维数据状态
+// 降维数据状态
 const dimReduceData = ref<Vec2D[]>([])
-// 新增：异常检测数据状态
+// 异常检测数据状态
 const anomalyData = ref<AnomalyData>({
   selfLoops: [],
   isolatedNodes: [],
@@ -191,13 +190,11 @@ const metricsData = ref<MetricsData>({
 // API配置
 const API_BASE_URL = import.meta.env.DEV ? '/api/graph/analysis/metrics' : 'http://localhost:8080/api/graph/analysis/metrics'
 const FILE_COUNT_API_URL = import.meta.env.DEV ? '/api/file/num' : 'http://localhost:8080/api/file/num'
-// 新增：降维API配置
 const DIM_REDUCE_API_URL = import.meta.env.DEV ? '/api/dim/all' : 'http://localhost:8080/api/dim/all'
 const DIM_REPLACE_API_URL = import.meta.env.DEV ? '/api/dim/replaceAll' : 'http://localhost:8080/api/dim/replaceAll'
-// 新增：异常检测API配置
 const ANOMALY_API_URL = import.meta.env.DEV ? '/api/graph/analysis/anomalies' : 'http://localhost:8080/api/graph/analysis/anomalies'
 
-// 新增：获取异常检测数据
+// 获取异常检测数据
 const fetchAnomalies = async (): Promise<void> => {
   anomalyLoading.value = true
   try {
@@ -220,123 +217,31 @@ const fetchAnomalies = async (): Promise<void> => {
       anomalyData.value = result.data
       console.log('异常检测结果:', result.data)
     } else {
-      throw new Error(result.message || '获取异常检测数据失败')
+      // 如果返回缓存错误，使用空数据而不是模拟数据
+      if (result.code === 'CACHE_ERROR') {
+        console.warn('异常检测数据尚未生成:', result.message)
+        anomalyData.value = {
+          selfLoops: [],
+          isolatedNodes: [],
+          duplicateRelations: [],
+          invalidRelations: []
+        }
+      } else {
+        throw new Error(result.message || '获取异常检测数据失败')
+      }
     }
   } catch (error) {
     console.error('获取异常检测数据失败:', error)
     
-    // 使用模拟数据作为备用
+    // 使用空数据作为备用
     anomalyData.value = {
-      selfLoops: [1, 2], // 模拟2个自环
+      selfLoops: [],
       isolatedNodes: [],
-      duplicateRelations: [1],
+      duplicateRelations: [],
       invalidRelations: []
     }
   } finally {
     anomalyLoading.value = false
-  }
-}
-
-// 新增：计算异常总数
-const getTotalAnomalies = (): number => {
-  const { selfLoops, isolatedNodes, duplicateRelations, invalidRelations } = anomalyData.value
-  return (selfLoops?.length || 0) + 
-         (isolatedNodes?.length || 0) + 
-         (duplicateRelations?.length || 0) + 
-         (invalidRelations?.length || 0)
-}
-
-// 新增：获取异常总数文本
-const getTotalAnomaliesText = (): string => {
-  const total = getTotalAnomalies()
-  return total === 0 ? '正常' : `${total}个异常`
-}
-
-// 新增：获取异常状态颜色
-const getAnomalyColor = (): string => {
-  return isDark.value ? '#ffffff' : '#333'
-}
-
-// 修改：降维数据替换接口
-const replaceDimData = async (): Promise<boolean> => {
-  dimReplaceLoading.value = true
-  try {
-    console.log('正在重新生成降维数据...')
-    const response = await fetch(DIM_REPLACE_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    })
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    
-    const result: DimReplaceResponse = await response.json()
-    console.log('降维数据重新生成成功:', result)
-    
-    if (result.code === 'SUCCESS') {
-      console.log('降维替换结果:', result.data)
-      return true
-    } else {
-      throw new Error(result.message || '重新生成降维数据失败')
-    }
-  } catch (error) {
-    console.error('重新生成降维数据失败:', error)
-    return false
-  } finally {
-    dimReplaceLoading.value = false
-  }
-}
-
-// 修改：获取降维数据
-const fetchDimReduceData = async (): Promise<void> => {
-  dimReduceLoading.value = true
-  try {
-    console.log('正在获取降维数据...')
-    const response = await fetch(DIM_REDUCE_API_URL, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    })
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    
-    const result: DimReduceResponse = await response.json()
-    console.log('降维数据获取成功:', result)
-    
-    if (result.code === 'SUCCESS') {
-      dimReduceData.value = result.data
-      console.log('降维数据点数量:', result.data.length)
-    } else {
-      throw new Error(result.message || '获取降维数据失败')
-    }
-  } catch (error) {
-    console.error('获取降维数据失败:', error)
-    
-    // 使用模拟数据作为备用 - 更新数据结构
-    const generateMockDimData = () => {
-      const data: Vec2D[] = []
-      const keywords = ['AI', '机器学习', '深度学习', '神经网络', '数据挖掘', '知识图谱', '自然语言处理', '计算机视觉', '推荐系统', '模式识别']
-      
-      for (let i = 0; i < 100; i++) {
-        data.push({
-          id: 1000000000000000000 + i,
-          name: keywords[i % keywords.length] + '_' + i,
-          x: Math.random() * 2 - 1, // 范围 -1 到 1，更接近真实数据
-          y: Math.random() * 2 - 1
-        })
-      }
-      return data
-    }
-    
-    dimReduceData.value = generateMockDimData()
-  } finally {
-    dimReduceLoading.value = false
   }
 }
 
@@ -360,19 +265,25 @@ const fetchMetrics = async (): Promise<void> => {
     if (result.code === 'SUCCESS') {
       metricsData.value = result.data
     } else {
-      throw new Error(result.message || '获取数据失败')
+      // 如果返回缓存错误，使用默认数据
+      if (result.code === 'CACHE_ERROR') {
+        console.warn('图谱分析数据尚未生成:', result.message)
+        metricsData.value = {
+          isolatedRatio: 0,
+          density: 0,
+          connectivity: []
+        }
+      } else {
+        throw new Error(result.message || '获取数据失败')
+      }
     }
   } catch (error) {
     console.error('获取图谱分析数据失败:', error)
-    // 使用模拟数据
+    // 使用默认数据
     metricsData.value = {
-      isolatedRatio: 0.15,
-      density: 0.35,
-      connectivity: [
-        { componentId: 1, size: 150 },
-        { componentId: 2, size: 80 },
-        { componentId: 3, size: 45 }
-      ]
+      isolatedRatio: 0,
+      density: 0,
+      connectivity: []
     }
   } finally {
     loading.value = false
@@ -403,66 +314,108 @@ const fetchFileCount = async (): Promise<void> => {
     }
   } catch (error) {
     console.error('获取文件数量失败:', error)
-    fileCount.value = '1,234'
+    fileCount.value = '0'
   } finally {
     fileLoading.value = false
   }
 }
 
-// 格式化函数
-const formatDensity = (density: number): string => {
-  return (density * 100).toFixed(1) + '%'
-}
-
-const getConnectivityCount = (connectivity: ConnectivityComponent[]): string => {
-  if (!connectivity || connectivity.length === 0) return '0个'
-  return `${connectivity.length}个`
-}
-
-const formatIsolatedRatio = (ratio: number): string => {
-  return (ratio * 100).toFixed(1) + '%'
-}
-
-// 新增：处理还原操作
-const handleRestore = async (chartInstance: echarts.ECharts) => {
+// 获取降维数据
+const fetchDimReduceData = async (): Promise<void> => {
+  dimReduceLoading.value = true
   try {
-    // 显示加载状态
-    chartInstance.showLoading({
-      color: '#1890ff',
-      text: '重新生成降维数据中...',
-      textColor: isDark.value ? '#ffffff' : '#333',
-      maskColor: isDark.value ? 'rgba(38, 38, 38, 0.8)' : 'rgba(255, 255, 255, 0.8)'
+    console.log('正在获取降维数据...')
+    const response = await fetch(DIM_REDUCE_API_URL, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
     })
     
-    // 1. 先调用替换接口重新生成降维数据
-    const replaceSuccess = await replaceDimData()
-    
-    if (replaceSuccess) {
-      // 2. 如果重新生成成功，获取新的降维数据
-      await fetchDimReduceData()
-      
-      // 3. 数据更新后，图表会通过 watch 自动重新渲染
-      console.log('降维数据已更新，图表将自动刷新')
-    } else {
-      // 如果重新生成失败，至少还原图表视图
-      chartInstance.dispatchAction({
-        type: 'restore'
-      })
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
     }
     
-    chartInstance.hideLoading()
-  } catch (error) {
-    console.error('还原操作失败:', error)
-    chartInstance.hideLoading()
+    const result: DimReduceResponse = await response.json()
+    console.log('降维数据获取成功:', result)
     
-    // 出错时至少还原图表视图
-    chartInstance.dispatchAction({
-      type: 'restore'
-    })
+    if (result.code === 'SUCCESS') {
+      dimReduceData.value = result.data
+      console.log('降维数据:', result.data)
+    } else {
+      throw new Error(result.message || '获取降维数据失败')
+    }
+  } catch (error) {
+    console.error('获取降维数据失败:', error)
+    
+    // 使用模拟数据作为备用
+    dimReduceData.value = [
+      { id: 1, name: '机器学习', x: 0.1, y: 0.2 },
+      { id: 2, name: '深度学习', x: 0.3, y: 0.4 },
+      { id: 3, name: '神经网络', x: 0.5, y: 0.6 },
+      { id: 4, name: '自然语言处理', x: 0.7, y: 0.8 }
+    ]
+  } finally {
+    dimReduceLoading.value = false
   }
 }
 
-// 初始化文件量趋势图表 - 添加主题支持
+// 降维数据重新生成
+const replaceDimData = async (): Promise<boolean> => {
+  dimReplaceLoading.value = true
+  try {
+    console.log('正在重新生成降维数据...')
+    const response = await fetch(DIM_REPLACE_API_URL, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const result: DimReplaceResponse = await response.json()
+    console.log('降维数据重新生成完成:', result)
+    
+    if (result.code === 'SUCCESS') {
+      console.log('降维数据重新生成成功:', result.data)
+      return true
+    } else {
+      throw new Error(result.message || '重新生成降维数据失败')
+    }
+  } catch (error) {
+    console.error('重新生成降维数据失败:', error)
+    return false
+  } finally {
+    dimReplaceLoading.value = false
+  }
+}
+
+// 处理降维数据重新生成的函数
+const handleRestore = async (chart: echarts.ECharts) => {
+  if (dimReplaceLoading.value) return
+  
+  chart.showLoading({
+    color: '#1890ff',
+    textColor: isDark.value ? '#ffffff' : '#333',
+    maskColor: isDark.value ? 'rgba(38, 38, 38, 0.8)' : 'rgba(255, 255, 255, 0.8)'
+  })
+  
+  const success = await replaceDimData()
+  
+  if (success) {
+    await fetchDimReduceData()
+    setTimeout(() => {
+      initQueryChart()
+    }, 100)
+  } else {
+    chart.hideLoading()
+  }
+}
+
+// 初始化文件量趋势图表
 const initFileChart = () => {
   if (!fileChartRef.value) return
   
@@ -572,14 +525,9 @@ const initFileChart = () => {
   }
   
   myChart.setOption(option)
-  
-  // 响应式调整
-  const resizeHandler = () => myChart.resize()
-  window.removeEventListener('resize', resizeHandler)
-  window.addEventListener('resize', resizeHandler)
 }
 
-// 初始化查询分布图表 - 添加主题支持
+// 初始化查询分布图表
 const initQueryChart = () => {
   if (!queryChartRef.value) return
   
@@ -608,7 +556,7 @@ const initQueryChart = () => {
     
     myChart.hideLoading()
     
-    // 将降维数据转换为ECharts需要的格式 - 适配新的数据结构
+    // 将降维数据转换为ECharts需要的格式
     const chartData = dimReduceData.value.map(item => ({
       name: item.name,
       value: [item.x, item.y],
@@ -630,7 +578,6 @@ const initQueryChart = () => {
     
     const option: EChartsOption = {
       title: {
-        
         subtext: `共 ${chartData.length} 个关键词`,
         textStyle: {
           color: isDark.value ? '#ffffff' : '#333',
@@ -644,60 +591,31 @@ const initQueryChart = () => {
         left: 10
       },
       tooltip: {
-        trigger: 'item',
         formatter: (params: any) => {
-          const data = params.data
-          return `
-            <div style="padding: 8px;">
-              <div style="font-weight: bold; margin-bottom: 4px;">关键词: ${data.keyword}</div>
-              <div>ID: ${data.id}</div>
-              <div>坐标: (${data.value[0].toFixed(4)}, ${data.value[1].toFixed(4)})</div>
-            </div>
-          `
+          return `关键词: ${params.data.keyword}<br/>坐标: (${params.data.value[0].toFixed(3)}, ${params.data.value[1].toFixed(3)})`
         },
         backgroundColor: isDark.value ? '#434343' : '#ffffff',
         borderColor: isDark.value ? '#434343' : '#d9d9d9',
         textStyle: {
           color: isDark.value ? '#ffffff' : '#333'
-        },
-        extraCssText: 'box-shadow: 0 2px 8px rgba(0,0,0,0.15); border-radius: 4px;'
+        }
       },
       toolbox: {
-        right: 20,
         feature: {
-          myRestore: {
-            show: true,
-            title: '重新生成数据',
-           icon: 'path://M4 12a8 8 0 0 1 8-8V2.5L16 6l-4 3.5V8a6 6 0 1 0 6 6h1.5a7.5 7.5 0 1 1-7.5-7.5z',
-            onclick: () => {
-              handleRestore(myChart)
-            }
+          restore: {
+            title: '重新生成',
+            onclick: () => handleRestore(myChart)
           },
           saveAsImage: {
-            title: '保存为图片',
-            pixelRatio: 2
+            title: '保存为图片'
           }
         },
         iconStyle: {
           borderColor: isDark.value ? '#ffffff' : '#333'
         }
       },
-      grid: {
-        left: '8%',
-        right: '12%',
-        bottom: '20%',
-        top: '20%',
-        containLabel: true
-      },
       xAxis: {
         type: 'value',
-        name: 'X坐标',
-        nameLocation: 'middle',
-        nameGap: 25,
-        nameTextStyle: {
-          color: isDark.value ? '#b3b3b3' : '#666',
-          fontSize: 12
-        },
         min: xMin - xPadding,
         max: xMax + xPadding,
         axisLine: {
@@ -706,25 +624,16 @@ const initQueryChart = () => {
           }
         },
         axisLabel: {
-          color: isDark.value ? '#b3b3b3' : '#666',
-          formatter: (value: number) => value.toFixed(2)
+          color: isDark.value ? '#b3b3b3' : '#666'
         },
         splitLine: {
           lineStyle: {
-            color: isDark.value ? '#434343' : '#f0f0f0',
-            type: 'dashed'
+            color: isDark.value ? '#434343' : '#f0f0f0'
           }
         }
       },
       yAxis: {
         type: 'value',
-        name: 'Y坐标',
-        nameLocation: 'middle',
-        nameGap: 35,
-        nameTextStyle: {
-          color: isDark.value ? '#b3b3b3' : '#666',
-          fontSize: 12
-        },
         min: yMin - yPadding,
         max: yMax + yPadding,
         axisLine: {
@@ -733,95 +642,50 @@ const initQueryChart = () => {
           }
         },
         axisLabel: {
-          color: isDark.value ? '#b3b3b3' : '#666',
-          formatter: (value: number) => value.toFixed(2)
+          color: isDark.value ? '#b3b3b3' : '#666'
         },
         splitLine: {
           lineStyle: {
-            color: isDark.value ? '#434343' : '#f0f0f0',
-            type: 'dashed'
+            color: isDark.value ? '#434343' : '#f0f0f0'
           }
         }
       },
-      dataZoom: [
-        {
-          type: 'inside',
-          xAxisIndex: 0
-        },
-        {
-          type: 'inside',
-          yAxisIndex: 0
-        },
-        {
-          type: 'slider',
-          xAxisIndex: 0,
-          bottom: 60,
-          height: 20,
-          textStyle: {
-            color: isDark.value ? '#ffffff' : '#333'
-          },
-          backgroundColor: isDark.value ? '#434343' : '#f5f5f5',
-          fillerColor: isDark.value ? '#666' : '#e6e6e6',
-          borderColor: isDark.value ? '#666' : '#d9d9d9'
-        },
-        {
-          type: 'slider',
-          yAxisIndex: 0,
-          right: 30,
-          width: 20,
-          textStyle: {
-            color: isDark.value ? '#ffffff' : '#333'
-          },
-          backgroundColor: isDark.value ? '#434343' : '#f5f5f5',
-          fillerColor: isDark.value ? '#666' : '#e6e6e6',
-          borderColor: isDark.value ? '#666' : '#d9d9d9'
-        }
-      ],
       series: [
         {
           name: '关键词分布',
           type: 'scatter',
           data: chartData,
           symbolSize: (data: any) => {
-            // 根据关键词长度调整点的大小，范围在4-12之间
             const length = data.keyword?.length || 3
             return Math.min(Math.max(length / 2 + 4, 4), 12)
           },
           itemStyle: {
-            opacity: 0.8,
-            color: (params: any) => {
-              // 根据数据索引生成不同颜色
-              const colors = [
-                '#1890ff', '#52c41a', '#faad14', '#f5222d', 
-                '#722ed1', '#13c2c2', '#eb2f96', '#fa8c16',
-                '#a0d911', '#096dd9', '#36cfc9', '#ff85c0'
-              ]
-              return colors[params.dataIndex % colors.length]
-            },
-            borderColor: isDark.value ? '#ffffff' : '#333',
-            borderWidth: 0.5
+            color: '#1890ff',
+            opacity: 0.7
           },
           emphasis: {
-            scale: 1.8,
             itemStyle: {
-              opacity: 1,
-              borderWidth: 2,
-              shadowBlur: 10,
-              shadowColor: 'rgba(0, 0, 0, 0.3)'
+              color: '#ff4d4f',
+              opacity: 1
+            },
+            label: {
+              show: true,
+              formatter: '{b}',
+              position: 'top',
+              textStyle: {
+                color: isDark.value ? '#ffffff' : '#333',
+                fontSize: 12
+              }
             }
-          },
-          large: chartData.length > 1000,
-          largeThreshold: 1000,
-          animation: true,
-          animationDuration: 1000,
-          animationEasing: 'cubicOut'
+          }
         }
       ]
     }
     
     myChart.setOption(option)
     
-    // 添加点击事件
+    // 添加点击事件（只添加一次）
+    myChart.off('click') // 先移除可能存在的旧事件
     myChart.on('click', (params: any) => {
       console.log('点击了关键词:', params.data.keyword, '坐标:', params.data.value)
     })
@@ -829,29 +693,9 @@ const initQueryChart = () => {
   
   // 开始等待数据
   waitForData()
-  
-  // 响应式调整
-  const resizeHandler = () => myChart.resize()
-  window.removeEventListener('resize', resizeHandler)
-  window.addEventListener('resize', resizeHandler)
 }
 
-// 检测主题的函数
-const detectTheme = () => {
-  const bodyBg = getComputedStyle(document.body).backgroundColor
-  const htmlBg = getComputedStyle(document.documentElement).backgroundColor
-  
-  // 检测是否为深色主题
-  const isDarkTheme = bodyBg === 'rgb(20, 20, 20)' || 
-                     htmlBg === 'rgb(20, 20, 20)' ||
-                     bodyBg === '#141414' ||
-                     htmlBg === '#141414'
-  
-  isDark.value = isDarkTheme
-  console.log('Theme detected:', isDarkTheme, 'bodyBg:', bodyBg, 'htmlBg:', htmlBg) // 调试用
-}
-
-// 监听主题变化，重新初始化图表
+// 重新初始化图表
 const reinitCharts = () => {
   setTimeout(() => {
     initFileChart()
@@ -859,85 +703,157 @@ const reinitCharts = () => {
   }, 100)
 }
 
-// 监听主题变化
-watch(isDark, () => {
-  console.log('Theme changed to:', isDark.value) // 调试用
-  reinitCharts()
+// 格式化函数
+const formatDensity = (density: number): string => {
+  return (density * 100).toFixed(2) + '%'
+}
+
+const formatIsolatedRatio = (ratio: number): string => {
+  return (ratio * 100).toFixed(2) + '%'
+}
+
+const getConnectivityCount = (connectivity: ConnectivityComponent[]): string => {
+  return connectivity.length.toString()
+}
+
+// 异常检测相关函数
+const getTotalAnomaliesText = (): string => {
+  const total = getTotalAnomalies()
+  return total > 0 ? `${total}个异常` : '正常'
+}
+
+const getTotalAnomalies = (): number => {
+  const data = anomalyData.value
+  return data.selfLoops.length + data.isolatedNodes.length + 
+         data.duplicateRelations.length + data.invalidRelations.length
+}
+
+const getAnomalyColor = (): string => {
+  const total = getTotalAnomalies()
+  if (total === 0) {
+    return '#52c41a' // 绿色表示正常
+  } else if (total < 5) {
+    return '#faad14' // 黄色表示轻微异常
+  } else {
+    return '#ff4d4f' // 红色表示严重异常
+  }
+}
+
+// 计算属性：获取各种样式
+const getStatItemStyle = () => ({
+  backgroundColor: isDark.value ? '#2a2a2a' : '#ffffff',
+  borderColor: isDark.value ? '#404040' : '#e2e8f0',
+  border: `1px solid ${isDark.value ? '#404040' : '#e2e8f0'}`
 })
 
-// 样式计算函数
-const getStatItemStyle = () => ({
-  backgroundColor: isDark.value ? '#262626' : '#ffffff',
-  borderBottom: `1px solid ${isDark.value ? '#434343' : '#f5f5f5'}`
-})
+const getIconStyle = (type: string) => {
+  const baseStyle = {
+    borderRadius: '50%',
+    width: '48px',
+    height: '48px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  }
+
+  if (isDark.value) {
+    const darkColors: Record<string, string> = {
+      density: '#1a3d1a',
+      connectivity: '#1a2d4d',
+      anomaly: '#4d1a1a',
+      isolated: '#4d2d1a',
+      file: '#2d4d1a'
+    }
+    return { ...baseStyle, backgroundColor: darkColors[type] || '#2a2a2a' }
+  } else {
+    const lightColors: Record<string, string> = {
+      density: '#e8f5e8',
+      connectivity: '#e6f7ff',
+      anomaly: '#fff1f0',
+      isolated: '#fff2e8',
+      file: '#f6ffed'
+    }
+    return { ...baseStyle, backgroundColor: lightColors[type] || '#f5f5f5' }
+  }
+}
 
 const getChartSectionStyle = () => ({
-  backgroundColor: isDark.value ? '#262626' : '#ffffff',
+  backgroundColor: isDark.value ? '#2a2a2a' : '#ffffff',
+  borderColor: isDark.value ? '#404040' : '#e2e8f0',
   padding: '20px',
-  border: 'none',
-  boxShadow: 'none',
-  borderRadius: 0
+  borderRadius: '8px',
+  border: `1px solid ${isDark.value ? '#404040' : '#e2e8f0'}`
 })
 
 const getChartTitleStyle = () => ({
-  margin: '0 0 16px 0',
+  color: isDark.value ? '#ffffff' : '#333333',
   fontSize: '16px',
-  color: isDark.value ? '#ffffff' : '#333',
-  borderBottom: `1px solid ${isDark.value ? '#434343' : '#f5f5f5'}`,
-  paddingBottom: '10px'
+  fontWeight: '600',
+  marginBottom: '16px'
 })
 
 const getActivitySectionStyle = () => ({
-  backgroundColor: isDark.value ? '#262626' : '#ffffff',
+  backgroundColor: isDark.value ? '#2a2a2a' : '#ffffff',
+  borderColor: isDark.value ? '#404040' : '#e2e8f0',
   padding: '20px',
-  border: 'none',
-  boxShadow: 'none',
-  borderRadius: 0
+  borderRadius: '8px',
+  border: `1px solid ${isDark.value ? '#404040' : '#e2e8f0'}`
 })
 
 const getTableHeaderStyle = () => ({
-  borderBottom: `1px solid ${isDark.value ? '#434343' : '#f5f5f5'}`,
-  color: isDark.value ? '#ffffff' : '#333'
+  borderBottom: `1px solid ${isDark.value ? '#404040' : '#e2e8f0'}`,
+  color: isDark.value ? '#ffffff' : '#333333'
 })
 
-// 监听降维数据变化，重新初始化查询图表
-watch(dimReduceData, () => {
-  setTimeout(() => {
-    initQueryChart()
-  }, 100)
-}, { deep: true })
+// 监听主题变化
+watch(isDarkMode, () => {
+  console.log('主题变化，重新初始化图表')
+  reinitCharts()
+})
 
-// 使用 MutationObserver 监听主题变化
-onMounted(() => {
-  // 初始检测主题
-  detectTheme()
+// 组件挂载时
+onMounted(async () => {
+  console.log('Dashboard组件已挂载，开始初始化...')
   
-  // 获取所有数据
-  fetchMetrics()
-  fetchFileCount()
-  fetchDimReduceData()
-  fetchAnomalies() // 新增：获取异常检测数据
-  
-  // 延迟初始化，确保DOM已渲染
+  // 先初始化图表
   setTimeout(() => {
     initFileChart()
     initQueryChart()
   }, 100)
   
-  // 监听 body 和 html 样式变化来检测主题切换
-  const observer = new MutationObserver(() => {
-    detectTheme()
-  })
+  // Dashboard打开时自动获取所有数据
+  console.log('Dashboard打开，开始获取最新数据...')
+  try {
+    await Promise.all([
+      fetchMetrics(),
+      fetchFileCount(),
+      fetchDimReduceData(),
+      fetchAnomalies()
+    ])
+    console.log('Dashboard数据获取完成')
+  } catch (error) {
+    console.error('Dashboard数据获取失败:', error)
+  }
+})
+
+// 组件卸载时清理
+onUnmounted(() => {
+  console.log('Dashboard组件正在卸载，清理资源...')
   
-  observer.observe(document.body, {
-    attributes: true,
-    attributeFilter: ['style']
-  })
+  // 销毁图表实例
+  if (fileChartRef.value) {
+    const fileChart = echarts.getInstanceByDom(fileChartRef.value)
+    if (fileChart) {
+      fileChart.dispose()
+    }
+  }
   
-  observer.observe(document.documentElement, {
-    attributes: true,
-    attributeFilter: ['style']
-  })
+  if (queryChartRef.value) {
+    const queryChart = echarts.getInstanceByDom(queryChartRef.value)
+    if (queryChart) {
+      queryChart.dispose()
+    }
+  }
 })
 </script>
 
@@ -956,12 +872,10 @@ onMounted(() => {
   margin-bottom: 30px;
 }
 
-/* 统计卡片样式 - 去除边框和阴影 */
+/* 统计卡片样式 */
 .stat-item {
   padding: 20px;
-  border: none;
-  box-shadow: none;
-  border-radius: 0;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   transition: all 0.3s ease;
@@ -970,33 +884,7 @@ onMounted(() => {
 .stat-icon {
   font-size: 24px;
   margin-right: 16px;
-  width: 48px;
-  height: 48px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-}
-
-.density-icon {
-  background-color: #e8f5e8;
-}
-
-.connectivity-icon {
-  background-color: #e6f7ff;
-}
-
-/* 新增：异常检测图标样式 */
-.anomaly-icon {
-  background-color: #fff1f0;
-}
-
-.isolated-icon {
-  background-color: #fff2e8;
-}
-
-.file-icon {
-  background-color: #f6ffed;
+  transition: background-color 0.3s ease;
 }
 
 .stat-content {

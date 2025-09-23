@@ -403,11 +403,39 @@ const entityTypes = ref<EntityType[]>([
 const ANOMALY_API_URL = import.meta.env.DEV ? '/api/graph/analysis/anomalies' : 'http://localhost:8080/api/graph/analysis/anomalies'
 const COMMUNITY_API_URL = import.meta.env.DEV ? '/api/graph/community' : 'http://localhost:8080/api/graph/community'
 const PATH_SEARCH_API_URL = import.meta.env.DEV ? '/api/graph/path' : 'http://localhost:8080/api/graph/path'
+// 新增：分析刷新API
+const ANALYSIS_REFRESH_API_URL = import.meta.env.DEV ? '/api/graph/analysis/refresh' : 'http://localhost:8080/api/graph/analysis/refresh'
 
 // 计算属性
 const selectedEntityCount = computed(() => {
   return entityTypes.value.filter(entity => entity.selected).length
 })
+
+// 新增：获取可用节点的辅助函数
+const getAvailableNodes = (type: string) => {
+  if (!originalGraphData.value) return []
+  
+  const prefix = type === 'KEYWORD' ? 'kw-' : 'doc-'
+  return originalGraphData.value.nodes.filter(node => node.id.startsWith(prefix))
+}
+
+// 新增：检查节点是否存在的辅助函数
+const hasNode = (type: string, label: string): boolean => {
+  if (!originalGraphData.value) return false
+  
+  const prefix = type === 'KEYWORD' ? 'kw-' : 'doc-'
+  return originalGraphData.value.nodes.some(node => 
+    node.id.startsWith(prefix) && node.label === label
+  )
+}
+
+// 新增：快速设置路径的辅助函数
+const setQuickPath = (startType: string, startKeyword: string, endType: string, endKeyword: string) => {
+  pathSearch.value.startType = startType
+  pathSearch.value.startKeyword = startKeyword
+  pathSearch.value.endType = endType
+  pathSearch.value.endKeyword = endKeyword
+}
 
 // 社区发现按钮文本
 const getCommunityButtonText = (): string => {
@@ -417,7 +445,7 @@ const getCommunityButtonText = (): string => {
 
 // 异常检测按钮文本
 const getAnomalyButtonText = (): string => {
-  if (anomalyLoading.value) return '检测中...'
+  if (anomalyLoading.value) return '刷新检测中...'
   return anomalyActive.value ? '收起异常检测' : '运行异常检测'
 }
 
@@ -460,19 +488,37 @@ const runAnomalyDetection = async (): Promise<void> => {
 
   anomalyLoading.value = true
   try {
-    console.log('开始异常检测...')
-    const response = await fetch(ANOMALY_API_URL, {
+    console.log('开始刷新图分析数据...')
+    
+    // 1. 先调用刷新接口
+    const refreshResponse = await fetch(ANALYSIS_REFRESH_API_URL, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       }
     })
     
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+    if (!refreshResponse.ok) {
+      throw new Error(`刷新失败! status: ${refreshResponse.status}`)
     }
     
-    const result: AnomalyResponse = await response.json()
+    const refreshResult = await refreshResponse.json()
+    console.log('图分析数据刷新完成:', refreshResult)
+    
+    // 2. 然后获取异常检测数据
+    console.log('开始获取异常检测数据...')
+    const anomalyResponse = await fetch(ANOMALY_API_URL, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    
+    if (!anomalyResponse.ok) {
+      throw new Error(`HTTP error! status: ${anomalyResponse.status}`)
+    }
+    
+    const result: AnomalyResponse = await anomalyResponse.json()
     console.log('异常检测完成:', result)
     
     if (result.code === 'SUCCESS') {
@@ -747,11 +793,13 @@ const runPathSearch = async (): Promise<void> => {
     console.log('找到起始节点ID:', startNode.id)
     console.log('找到目标节点ID:', endNode.id)
     
-    // 使用节点ID作为参数
+    // 使用正确的参数名：startId 和 endId
     const params = new URLSearchParams({
       startId: startNode.id,
       endId: endNode.id
     })
+    
+    console.log('请求参数:', params.toString())
     
     const response = await fetch(`${PATH_SEARCH_API_URL}?${params.toString()}`, {
       method: 'GET',
@@ -765,50 +813,122 @@ const runPathSearch = async (): Promise<void> => {
     }
     
     const result: PathSearchResponse = await response.json()
-    console.log('BFS路径搜索完成:', result)
+    console.log('BFS路径搜索API响应:', result)
     
-    if (result.code === 'SUCCESS') {
+    if (result.code === 'SUCCESS' && result.data) {
       pathResults.value = result.data
       
-      // 高亮路径节点和边
-      const highlightNodes = new Set(result.data.nodes?.map(n => n.id) || [])
-      const highlightEdges = new Set(result.data.edges?.map(e => `${e.source}-${e.target}`) || [])
+      // 验证返回的路径数据
+      if (!result.data.nodes || result.data.nodes.length === 0) {
+        console.warn('API返回的路径为空')
+        throw new Error('未找到连接路径')
+      }
+      
+      console.log('找到路径节点:', result.data.nodes.map(n => `${n.id}(${n.label})`))
+      console.log('找到路径边:', result.data.edges)
+      
+      // 高亮路径节点
+      const highlightNodes = new Set(result.data.nodes.map(n => n.id))
+      
+      // 高亮路径边 - 改进边的匹配逻辑
+      const highlightEdges = new Set<string>()
+      if (result.data.edges && result.data.edges.length > 0) {
+        result.data.edges.forEach(edge => {
+          // 添加两个方向的边，因为图可能是无向的
+          highlightEdges.add(`${edge.source}-${edge.target}`)
+          highlightEdges.add(`${edge.target}-${edge.source}`)
+        })
+      } else {
+        // 如果API没有返回边，根据节点顺序生成边
+        for (let i = 0; i < result.data.nodes.length - 1; i++) {
+          const currentNode = result.data.nodes[i]
+          const nextNode = result.data.nodes[i + 1]
+          highlightEdges.add(`${currentNode.id}-${nextNode.id}`)
+          highlightEdges.add(`${nextNode.id}-${currentNode.id}`)
+        }
+      }
       
       pathHighlightNodes.value = highlightNodes
       pathHighlightEdges.value = highlightEdges
       
+      console.log('路径高亮节点:', Array.from(highlightNodes))
+      console.log('路径高亮边:', Array.from(highlightEdges))
+      
       // 更新图表高亮
       updateChartWithPathHighlight()
       
-      console.log('BFS路径搜索结果:', result.data)
+      console.log('BFS路径搜索结果处理完成')
     } else {
       throw new Error(result.message || 'BFS路径搜索失败')
     }
   } catch (error) {
     console.error('BFS路径搜索失败:', error)
     
-    // 使用模拟路径数据，支持不同类型的节点
+    // 使用模拟路径数据作为备用
     if (originalGraphData.value && originalGraphData.value.nodes.length > 0) {
-      const startNode = originalGraphData.value.nodes.find(n => n.label === pathSearch.value.startKeyword)
-      const endNode = originalGraphData.value.nodes.find(n => n.label === pathSearch.value.endKeyword)
+      console.log('使用模拟路径数据作为备用')
+      
+      // 查找起始和目标节点
+      const startNode = originalGraphData.value.nodes.find(node => {
+        const prefix = pathSearch.value.startType === 'KEYWORD' ? 'kw-' : 'doc-'
+        return node.id.startsWith(prefix) && node.label === pathSearch.value.startKeyword
+      })
+      
+      const endNode = originalGraphData.value.nodes.find(node => {
+        const prefix = pathSearch.value.endType === 'KEYWORD' ? 'kw-' : 'doc-'
+        return node.id.startsWith(prefix) && node.label === pathSearch.value.endKeyword
+      })
       
       if (startNode && endNode) {
-        pathResults.value = {
-          nodes: [startNode, endNode],
-          edges: [
-            { source: startNode.id, target: endNode.id }
-          ]
+        // 简单的BFS算法找路径
+        const path = findPathBFS(startNode, endNode, originalGraphData.value.edges)
+        
+        if (path && path.length > 0) {
+          // 构造路径边
+          const pathEdges = []
+          for (let i = 0; i < path.length - 1; i++) {
+            pathEdges.push({
+              source: path[i].id,
+              target: path[i + 1].id
+            })
+          }
+          
+          pathResults.value = {
+            nodes: path,
+            edges: pathEdges
+          }
+          
+          // 高亮路径节点和边
+          const highlightNodes = new Set(path.map(n => n.id))
+          const highlightEdges = new Set<string>()
+          
+          pathEdges.forEach(edge => {
+            highlightEdges.add(`${edge.source}-${edge.target}`)
+            highlightEdges.add(`${edge.target}-${edge.source}`)
+          })
+          
+          pathHighlightNodes.value = highlightNodes
+          pathHighlightEdges.value = highlightEdges
+          
+          updateChartWithPathHighlight()
+          
+          console.log('使用模拟BFS路径数据:', pathResults.value)
+        } else {
+          console.warn('未找到连接路径')
+          // 即使没找到路径也创建一个直接连接作为示例
+          pathResults.value = {
+            nodes: [startNode, endNode],
+            edges: [{ source: startNode.id, target: endNode.id }]
+          }
+          
+          const highlightNodes = new Set([startNode.id, endNode.id])
+          const highlightEdges = new Set([`${startNode.id}-${endNode.id}`, `${endNode.id}-${startNode.id}`])
+          
+          pathHighlightNodes.value = highlightNodes
+          pathHighlightEdges.value = highlightEdges
+          
+          updateChartWithPathHighlight()
         }
-        
-        const highlightNodes = new Set([startNode.id, endNode.id])
-        const highlightEdges = new Set([`${startNode.id}-${endNode.id}`])
-        
-        pathHighlightNodes.value = highlightNodes
-        pathHighlightEdges.value = highlightEdges
-        
-        updateChartWithPathHighlight()
-        
-        console.log('使用模拟路径数据:', pathResults.value)
       } else {
         throw new Error(`未找到节点: ${!startNode ? pathSearch.value.startKeyword : pathSearch.value.endKeyword}`)
       }
@@ -818,9 +938,63 @@ const runPathSearch = async (): Promise<void> => {
   }
 }
 
-// 更新图表路径高亮
+// 新增：简单的BFS路径查找算法
+const findPathBFS = (startNode: Node, endNode: Node, edges: Edge[]): Node[] | null => {
+  if (startNode.id === endNode.id) {
+    return [startNode]
+  }
+  
+  // 构建邻接表
+  const adjacencyList = new Map<string, string[]>()
+  edges.forEach(edge => {
+    if (!adjacencyList.has(edge.source)) {
+      adjacencyList.set(edge.source, [])
+    }
+    if (!adjacencyList.has(edge.target)) {
+      adjacencyList.set(edge.target, [])
+    }
+    adjacencyList.get(edge.source)!.push(edge.target)
+    adjacencyList.get(edge.target)!.push(edge.source) // 无向图
+  })
+  
+  // BFS算法
+  const queue = [{ nodeId: startNode.id, path: [startNode] }]
+  const visited = new Set<string>([startNode.id])
+  
+  while (queue.length > 0) {
+    const { nodeId, path } = queue.shift()!
+    
+    if (nodeId === endNode.id) {
+      return path
+    }
+    
+    const neighbors = adjacencyList.get(nodeId) || []
+    for (const neighborId of neighbors) {
+      if (!visited.has(neighborId)) {
+        visited.add(neighborId)
+        
+        // 找到邻居节点对象
+        const neighborNode = originalGraphData.value?.nodes.find(n => n.id === neighborId)
+        if (neighborNode) {
+          queue.push({
+            nodeId: neighborId,
+            path: [...path, neighborNode]
+          })
+        }
+      }
+    }
+  }
+  
+  return null // 未找到路径
+}
+
+// 改进的路径高亮更新函数
 const updateChartWithPathHighlight = (): void => {
   if (!myChart.value || !originalGraphData.value) return
+  
+  console.log('开始更新图表路径高亮')
+  console.log('高亮节点:', Array.from(pathHighlightNodes.value))
+  console.log('高亮边:', Array.from(pathHighlightEdges.value))
   
   // 清除社区状态
   communityActive.value = false
@@ -831,74 +1005,14 @@ const updateChartWithPathHighlight = (): void => {
   applyFilters()
 }
 
-// 监听暗黑模式变化
-watch(isDarkMode, (newVal: boolean) => {
-  console.log('Query页面检测到全局暗黑模式变化:', newVal)
-  if (myChart.value) {
-    updateChartTheme()
-  }
-}, { immediate: true })
-
-// 监听筛选条件变化
-watch([entityTypes], () => {
-  if (myChart.value && chartLoaded.value) {
-    applyFilters()
-  }
-}, { deep: true })
-
-// 计算可用的关键词列表
-const availableKeywords = computed(() => {
-  if (!originalGraphData.value) return []
-  
-  return originalGraphData.value.nodes
-    .filter(node => node.id.startsWith('kw-')) // 只显示关键词节点
-    .map(node => ({
-      id: node.id,
-      label: node.label
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label)) // 按标签排序
-})
-
-// 检查是否存在指定关键词
-const hasKeyword = (keyword: string): boolean => {
-  return availableKeywords.value.some(kw => kw.label === keyword)
-}
-
-// 获取指定类型的可用节点
-const getAvailableNodes = (nodeType: string) => {
-  if (!originalGraphData.value) return []
-  
-  const prefix = nodeType === 'KEYWORD' ? 'kw-' : 'doc-'
-  
-  return originalGraphData.value.nodes
-    .filter(node => node.id.startsWith(prefix))
-    .map(node => ({
-      id: node.id,
-      label: node.label
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label))
-}
-
-// 检查是否存在指定类型和标签的节点
-const hasNode = (nodeType: string, label: string): boolean => {
-  return getAvailableNodes(nodeType).some(node => node.label === label)
-}
-
-// 快速设置路径
-const setQuickPath = (startType: string, start: string, endType: string, end: string): void => {
-  pathSearch.value.startType = startType
-  pathSearch.value.startKeyword = start
-  pathSearch.value.endType = endType
-  pathSearch.value.endKeyword = end
-}
-
-// 应用筛选条件
+// 改进的筛选应用函数 - 重点修复边的高亮逻辑
 const applyFilters = (): void => {
   if (!myChart.value || !originalGraphData.value) return
   
   console.log('开始应用筛选条件')
   console.log('当前社区激活状态:', communityActive.value)
-  console.log('当前社区节点颜色:', communityNodeColors.value)
+  console.log('当前路径高亮节点:', Array.from(pathHighlightNodes.value))
+  console.log('当前路径高亮边:', Array.from(pathHighlightEdges.value))
   
   // 获取选中的实体类型
   const selectedEntityTypes = entityTypes.value
@@ -929,29 +1043,38 @@ const applyFilters = (): void => {
   // 转换为ECharts数据格式，使用社区颜色或路径高亮
   const chartData = filteredNodes.map((node: Node) => {
     const nodeColor = getNodeColor(node)
-    console.log(`节点 ${node.id} (${node.label}) 分配颜色:`, nodeColor)
+    const isHighlighted = pathHighlightNodes.value.has(node.id)
+    
+    console.log(`节点 ${node.id} (${node.label}) 分配颜色: ${nodeColor}, 是否高亮: ${isHighlighted}`)
     
     return {
       id: node.id,
       name: node.label,
-      symbolSize: pathHighlightNodes.value.has(node.id) ? (node.size || 20) * 1.5 : (node.size || 20), // 路径节点放大
+      symbolSize: isHighlighted ? (node.size || 20) * 1.5 : (node.size || 20), // 路径节点放大
       itemStyle: {
         color: nodeColor, // 使用更新的颜色分配函数
-        borderColor: pathHighlightNodes.value.has(node.id) ? '#FF4757' : undefined, // 路径节点添加边框
-        borderWidth: pathHighlightNodes.value.has(node.id) ? 3 : 0
+        borderColor: isHighlighted ? '#FF4757' : undefined, // 路径节点添加红色边框
+        borderWidth: isHighlighted ? 3 : 0
       },
       category: node.id.startsWith('doc-') ? 0 : 1,
       label: {
-        fontSize: pathHighlightNodes.value.has(node.id) ? 12 : 9, // 路径节点字体放大
+        show: isHighlighted, // 路径节点始终显示标签
+        fontSize: isHighlighted ? 12 : 9, // 路径节点字体放大
         color: isDarkMode.value ? '#ffffff' : '#333333',
-        fontWeight: pathHighlightNodes.value.has(node.id) ? 'bold' : 'normal'
+        fontWeight: isHighlighted ? 'bold' : 'normal'
       }
     };
   })
   
   const chartEdges = filteredEdges.map((edge: Edge) => {
-    const edgeKey = `${edge.source}-${edge.target}`
-    const isHighlighted = pathHighlightEdges.value.has(edgeKey) || pathHighlightEdges.value.has(`${edge.target}-${edge.source}`)
+    // 改进边的高亮检测逻辑
+    const edgeKey1 = `${edge.source}-${edge.target}`
+    const edgeKey2 = `${edge.target}-${edge.source}`
+    const isHighlighted = pathHighlightEdges.value.has(edgeKey1) || pathHighlightEdges.value.has(edgeKey2)
+    
+    if (isHighlighted) {
+      console.log(`边 ${edgeKey1} 被高亮`)
+    }
     
     return {
       source: edge.source,
@@ -959,7 +1082,7 @@ const applyFilters = (): void => {
       lineStyle: {
         width: isHighlighted ? 4 : 1, // 路径边加粗
         opacity: isHighlighted ? 1 : 0.6,
-        color: isHighlighted ? '#FF4757' : undefined // 路径边高亮颜色
+        color: isHighlighted ? '#FF4757' : (isDarkMode.value ? '#64748b' : '#94a3b8') // 路径边高亮颜色
       }
     };
   })
@@ -973,6 +1096,12 @@ const applyFilters = (): void => {
   }, false)
   
   console.log(`筛选完成: 显示 ${filteredNodes.length} 个节点，${filteredEdges.length} 条边`)
+  console.log(`其中高亮节点: ${chartData.filter(n => pathHighlightNodes.value.has(n.id)).length} 个`)
+  console.log(`其中高亮边: ${chartEdges.filter(e => {
+    const key1 = `${e.source}-${e.target}`
+    const key2 = `${e.target}-${e.source}`
+    return pathHighlightEdges.value.has(key1) || pathHighlightEdges.value.has(key2)
+  }).length} 条`)
 }
 
 // 更新图表主题
@@ -1357,39 +1486,43 @@ const handleResize = (): void => {
   }
 }
 
-// 修复：生命周期钩子中的事件监听器管理
-let handleGraphUpdate: (() => void) | null = null
+// 监听主题变化
+watch(isDarkMode, (newValue) => {
+  console.log('Query: 主题变化到', newValue ? 'dark' : 'light')
+  updateChartTheme()
+})
+
+// 修复：生命周期钩子中的事件监听器管理 - 简化版本
+let resizeHandler: (() => void) | null = null
 
 // 生命周期钩子
 onMounted(async () => {
   console.log('Query组件已挂载，当前全局主题状态:', isDarkMode.value)
   await nextTick()
   await initChart()
-  window.addEventListener('resize', handleResize)
   
-  // 修复：正确定义和管理事件监听器
-  handleGraphUpdate = () => {
-    console.log('收到知识图谱更新事件，自动刷新数据')
-    refreshData()
+  // 只保留必要的resize事件监听器
+  resizeHandler = () => {
+    if (myChart.value) {
+      myChart.value.resize()
+    }
   }
-  
-  window.addEventListener('knowledge-graph-updated', handleGraphUpdate)
+  window.addEventListener('resize', resizeHandler)
 })
 
 onUnmounted(() => {
   console.log('Query组件正在卸载，清理资源...')
   
+  // 销毁ECharts实例
   if (myChart.value) {
     myChart.value.dispose()
     myChart.value = null
   }
   
-  window.removeEventListener('resize', handleResize)
-  
-  // 修复：正确移除事件监听器
-  if (handleGraphUpdate) {
-    window.removeEventListener('knowledge-graph-updated', handleGraphUpdate)
-    handleGraphUpdate = null
+  // 移除resize事件监听器
+  if (resizeHandler) {
+    window.removeEventListener('resize', resizeHandler)
+    resizeHandler = null
   }
   
   // 清理所有状态

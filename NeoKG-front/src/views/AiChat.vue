@@ -8,7 +8,13 @@
           <div class="welcome-content">
             <div class="logo-section">
               <div class="logo-icon">
-                <span class="logo-text">NG</span>
+                <!-- 添加暗夜模式图片处理 -->
+                <img 
+                  src="@/assets/NKG2.png" 
+                  alt="NeoKG" 
+                  class="logo-image"
+                  :class="{ 'dark-mode-image': isDarkMode }"
+                />
               </div>
             </div>
             <h1 class="welcome-title" :style="{ color: themeStyles.textColor }">您在忙什么？</h1>
@@ -33,7 +39,13 @@
           <!-- AI回复 -->
           <div v-if="message.type === 'ai'" class="message-row ai-message">
             <div class="ai-avatar">
-              <span class="ai-logo">NG</span>
+              <!-- 添加暗夜模式图片处理 -->
+              <img 
+                src="@/assets/NKG2.png" 
+                alt="NeoKG" 
+                class="ai-avatar-image"
+                :class="{ 'dark-mode-image': isDarkMode }"
+              />
             </div>
             <div class="message-content ai-content" :style="{ 
               backgroundColor: themeStyles.aiMessageBg,
@@ -113,6 +125,7 @@ import {
   AudioOutlined
 } from '@ant-design/icons-vue'
 import { isDarkMode } from '@/stores/theme'
+import axios from 'axios'
 
 // 类型定义
 type ChatMessage = {
@@ -200,7 +213,7 @@ const handleKeyDown = (e: KeyboardEvent) => {
   }
 }
 
-// 发送消息
+// 发送消息 - 修改为调用后端接口
 const sendMessage = async () => {
   if (!inputMessage.value.trim() || loading.value) return
 
@@ -231,25 +244,23 @@ const sendMessage = async () => {
   loading.value = true
 
   try {
-    // 模拟API调用
-    await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 1500))
+    // 调用后端聊天接口
+    const formData = new FormData()
+    formData.append('message', userMessage)
+    
+    const response = await axios.post('/api/chat', formData, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded'
+      }
+    })
     
     // 移除加载消息
     messages.value.pop()
     
     // 添加AI回复
-    const responses = [
-      '这是一个很好的问题！基于我的知识图谱分析，我可以为您提供以下信息：\n\n**核心观点：**\n- 这个问题涉及多个维度的分析\n- 从数据关联性来看，存在显著的模式\n- 建议您可以从以下角度进一步探索',
-      '根据知识图谱的关联分析，这个话题确实很有意思！\n\n让我为您详细解释：\n\n1. **背景分析**：相关概念之间存在密切联系\n2. **数据支撑**：从多个数据源可以验证这一观点\n3. **实践建议**：建议您可以尝试以下方法',
-      '感谢您的提问！基于现有的知识图谱数据，我发现了一些有趣的关联：\n\n**关键发现：**\n- 相关实体间的关系强度较高\n- 存在多条推理路径支持这一结论\n- 可以从不同角度进行深入分析',
-      '这是一个非常有深度的问题！从知识图谱的角度来看：\n\n**分析维度：**\n1. 概念层面的关联性\n2. 实例数据的支撑程度\n3. 推理链条的可靠性\n\n希望这个回答对您有帮助！'
-    ]
-    
-    const randomResponse = responses[Math.floor(Math.random() * responses.length)]
-    
     messages.value.push({
       type: 'ai',
-      content: randomResponse,
+      content: response.data || '抱歉，我没有收到有效的回复。',
       timestamp: Date.now(),
       loading: false
     })
@@ -658,5 +669,68 @@ onMounted(() => {
   .logo-text {
     font-size: 24px;
   }
+}
+
+/* 暗夜模式图片处理 */
+.dark-mode-image {
+  filter: brightness(0.4) contrast(1.5);
+  transition: filter 0.3s ease;
+}
+
+.logo-image {
+  width: 84px;  /* 修改为固定尺寸 */
+  height: 84px; /* 修改为固定尺寸 */
+  object-fit: contain;
+  transition: filter 0.3s ease;
+  border-radius: 12px; /* 添加圆角 */
+}
+
+.ai-avatar-image {
+  width: 40px;  /* 调整为合适尺寸 */
+  height: 40px; /* 调整为合适尺寸 */
+  object-fit: contain;
+  transition: filter 0.3s ease;
+  border-radius: 8px; /* 添加圆角 */
+}
+
+/* 暗夜模式下的图片悬停效果 */
+.dark-mode-image:hover {
+  filter: brightness(0.9) contrast(1.2);
+}
+
+/* 为logo区域添加更多样式效果 */
+.logo-icon {
+  width: 80px;
+  height: 80px;
+  border-radius: 20px;
+  background: v-bind('themeStyles.gradientPrimary');
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto;
+  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+  transition: transform 0.3s ease;
+  overflow: hidden; /* 确保图片圆角效果 */
+}
+
+.logo-icon:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4); /* 增强悬停阴影 */
+}
+
+/* AI头像容器也添加圆角 */
+.ai-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: white;
+  background: v-bind('themeStyles.gradientPrimary');
+  overflow: hidden; /* 确保图片圆角效果 */
 }
 </style>
