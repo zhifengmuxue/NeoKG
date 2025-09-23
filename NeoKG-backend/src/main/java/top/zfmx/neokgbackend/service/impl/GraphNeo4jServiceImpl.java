@@ -5,7 +5,6 @@ import com.google.gson.Gson;
 import jakarta.annotation.Resource;
 import org.neo4j.driver.Record;
 import org.neo4j.driver.types.Node;
-import org.neo4j.driver.types.Relationship;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import top.zfmx.neokgbackend.pojo.dto.GraphEdge;
@@ -148,7 +147,9 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
                 }
             }
             // 最后兜底直接查询 Neo4j
+            // TODO 这里其实有点问题 测试中
             return buildGraphFromNeo4j();
+//            return getAllGraph();
         }
     }
 
@@ -211,7 +212,6 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
 
         return graph;
     }
-
 
 
     /**

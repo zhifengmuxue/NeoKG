@@ -4,10 +4,7 @@ import jakarta.annotation.Resource;
 import org.springframework.web.bind.annotation.*;
 import top.zfmx.neokgbackend.pojo.entity.Document;
 import top.zfmx.neokgbackend.pojo.response.Result;
-import top.zfmx.neokgbackend.service.DocumentService;
-import top.zfmx.neokgbackend.service.GraphMetricsCacheService;
-import top.zfmx.neokgbackend.service.GraphNeo4jService;
-import top.zfmx.neokgbackend.service.PathService;
+import top.zfmx.neokgbackend.service.*;
 
 import java.util.List;
 import java.util.Map;
@@ -31,6 +28,9 @@ public class GraphController {
 
     @Resource
     private GraphMetricsCacheService cacheService;
+
+    @Resource
+    private GraphAnalysisService graphAnalysisService;
 
 
     /**
@@ -93,6 +93,15 @@ public class GraphController {
     public Result<Map<String, Object>> getAnomalies() {
         Map<String, Object> anomalies = cacheService.getAnomalies();
         return anomalies != null ? Result.ok(anomalies) : Result.cacheError("图异常尚未生成，请稍后再试");
+    }
+
+    @GetMapping("/analysis/refresh")
+    public Result<String> refreshAnalysis() {
+        Map<String, Object> metrics = graphAnalysisService.calculateMetrics();
+        cacheService.cacheMetrics(metrics);
+        Map<String, Object> anomalies = graphAnalysisService.detectAnomalies();
+        cacheService.cacheAnomalies(anomalies);
+        return Result.ok("图分析刷新完成");
     }
 }
 

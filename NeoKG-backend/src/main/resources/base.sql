@@ -96,9 +96,7 @@ end_entity_id BIGINT NOT NULL,        -- 对应 entity_instance.id
 relation_type_id BIGINT,
 properties JSONB,                     -- 关系属性 JSON，例如 {"index":1}
 created_at TIMESTAMP DEFAULT NOW(),
-updated_at TIMESTAMP DEFAULT NOW(),
-CONSTRAINT fk_start_entity FOREIGN KEY(start_entity_id) REFERENCES entity_instance(id) ON DELETE CASCADE,
-CONSTRAINT fk_end_entity FOREIGN KEY(end_entity_id) REFERENCES entity_instance(id) ON DELETE CASCADE
+updated_at TIMESTAMP DEFAULT NOW()
 );
 
 
