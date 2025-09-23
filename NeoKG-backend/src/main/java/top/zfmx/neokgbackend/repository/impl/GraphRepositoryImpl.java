@@ -92,12 +92,8 @@ public class GraphRepositoryImpl implements GraphRepository {
             String projectQuery = """
             CALL gds.graph.project(
               'myGraph',
-              ['Document', 'Keyword'],  // 节点标签
-              {
-                HAS_KEYWORD: {
-                  orientation: 'UNDIRECTED'
-                }
-              }
+              ['DocumentNode', 'KeywordNode'],
+              { HAS_KEYWORD: { orientation: 'UNDIRECTED' } }
             )
         """;
             neo4jClient.query(projectQuery).run();

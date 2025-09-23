@@ -22,6 +22,7 @@ import org.neo4j.driver.*;
 import java.util.*;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 public class GraphNeo4jServiceImpl implements GraphNeo4jService {
@@ -147,7 +148,6 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
                 }
             }
             // 最后兜底直接查询 Neo4j
-            // TODO 这里其实有点问题 测试中
             return buildGraphFromNeo4j();
 //            return getAllGraph();
         }
@@ -161,9 +161,22 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
             return gson.fromJson(cacheJson, new TypeToken<Map<String, Object>>() {}.getType());
         }
 
-        // 1️⃣ 社区划分
+        // 社区划分
         graphRepository.ensureGraphExists();
         List<Map<String, Object>> results = graphRepository.detectCommunities();
+        System.out.println(results);
+
+        // 计算所有社区总数，统一染色
+        Set<Long> allCommunities = results.stream()
+                .map(row -> ((Number) row.get("community")).longValue())
+                .collect(Collectors.toSet());
+        Map<Long, String> communityColors = new HashMap<>();
+        int idx = 0;
+        for (Long c : allCommunities) {
+            float hue = idx * 360f / allCommunities.size();
+            communityColors.put(c, hslToHex(hue, 0.7f, 0.5f)); // 转成 #RRGGBB
+            idx++;
+        }
 
         List<GraphNode> nodes = new ArrayList<>();
         List<GraphEdge> edges = new ArrayList<>();
@@ -186,13 +199,13 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
 
             String label = docId != null ? title : name;
 
-            // 🎨 动态颜色分配（基于 HSL）
-            String color = "hsl(" + (community * 47 % 360) + ", 70%, 50%)";
+            // 使用统一社区颜色
+            String color = communityColors.get(community);
 
             nodes.add(new GraphNode(nodeId, label, 20.0, color));
         }
 
-        // 2️⃣ 关系查询
+        //  关系查询
         List<Map<String, Object>> rels = graphRepository.findDocKeywordRelations();
         for (Map<String, Object> rel : rels) {
             edges.add(new GraphEdge(String.valueOf(rel.get("sourceId")), String.valueOf(rel.get("targetId"))));
@@ -202,11 +215,13 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
         graph.put("nodes", nodes);
         graph.put("edges", edges);
 
-        // 3️⃣ 缓存
+        //  缓存
         long ttl = BASE_TTL + ThreadLocalRandom.current().nextInt(120);
         redisTemplate.opsForValue().set(cacheKey, gson.toJson(graph), ttl, TimeUnit.SECONDS);
+        System.out.println(graph);
         return graph;
     }
+
 
     /**
      * 从 Neo4j 构建文档-关键词图
@@ -427,5 +442,26 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
                 "nodes", nodes,
                 "edges", edges
         );
+    }
+
+    // HSL 转 Hex
+    private String hslToHex(float h, float s, float l) {
+        float c = (1 - Math.abs(2 * l - 1)) * s;
+        float x = c * (1 - Math.abs((h / 60) % 2 - 1));
+        float m = l - c / 2;
+
+        float r = 0, g = 0, b = 0;
+        if (0 <= h && h < 60) { r = c; g = x; b = 0; }
+        else if (60 <= h && h < 120) { r = x; g = c; b = 0; }
+        else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
+        else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
+        else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
+        else if (300 <= h && h < 360) { r = c; g = 0; b = x; }
+
+        int R = Math.round((r + m) * 255);
+        int G = Math.round((g + m) * 255);
+        int B = Math.round((b + m) * 255);
+
+        return String.format("#%02X%02X%02X", R, G, B);
     }
 }
