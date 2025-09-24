@@ -127,8 +127,13 @@ export const logout = (): void => {
 
 // 初始化用户状态
 export const initUserState = (): void => {
+  console.log('初始化用户状态...')
+  
   const savedUserInfo = localStorage.getItem('userInfo')
   const savedLoginState = localStorage.getItem('isLoggedIn')
+  
+  console.log('保存的用户信息:', savedUserInfo)
+  console.log('保存的登录状态:', savedLoginState)
   
   if (savedUserInfo && savedLoginState === 'true') {
     try {
@@ -140,9 +145,14 @@ export const initUserState = (): void => {
       }
       userInfo.value = info
       isLoggedIn.value = true
+      console.log('用户状态已恢复:', userInfo.value)
     } catch (error) {
       console.error('Failed to parse user info:', error)
       logout()
     }
+  } else {
+    console.log('没有保存的用户信息，用户未登录')
+    isLoggedIn.value = false
+    userInfo.value = {}
   }
 }

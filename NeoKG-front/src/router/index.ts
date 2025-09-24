@@ -14,7 +14,12 @@ import Register from '../views/Register.vue'
 const routes = [
   {
     path: '/',
-    redirect: '/dashboard'
+    redirect: (to: any) => {
+      // 初始化用户状态
+      initUserState()
+      // 根据登录状态决定重定向目标
+      return isLoggedIn.value ? '/dashboard' : '/auth/login'
+    }
   },
   // 认证路由组 - 使用独立布局
   {
@@ -94,10 +99,18 @@ const router = createRouter({
   routes
 })
 
-// 路由守卫
+// 路由守卫 - 增加详细日志
 router.beforeEach(async (to, from, next) => {
-  // 初始化用户状态
+  console.log('=== 路由守卫开始 ===')
+  console.log('目标路径:', to.path)
+  console.log('目标路由名称:', to.name)
+  console.log('来源路径:', from.path)
+  
+  // 在路由守卫中初始化用户状态
   initUserState()
+  
+  console.log('用户登录状态:', isLoggedIn.value)
+  console.log('目标路由 meta:', to.meta)
   
   // 设置页面标题
   if (to.meta.title) {
@@ -106,18 +119,24 @@ router.beforeEach(async (to, from, next) => {
     document.title = 'NeoKG - 知识图谱管理平台'
   }
   
-  // 检查是否需要登录
+  // 如果用户未登录且访问需要认证的页面
   if (to.meta.requiresAuth && !isLoggedIn.value) {
+    console.log('❌ 用户未登录，需要重定向到登录页面')
+    console.log('正在执行 next("/auth/login")')
     next('/auth/login')
+    console.log('next("/auth/login") 已执行')
     return
   }
   
-  // 检查是否是访客页面（已登录用户不应该访问登录/注册页面）
+  // 如果用户已登录但访问登录/注册页面
   if (to.meta.requiresGuest && isLoggedIn.value) {
+    console.log('✅ 用户已登录，重定向到仪表板')
     next('/dashboard')
     return
   }
   
+  console.log('✅ 允许访问:', to.path)
+  console.log('=== 路由守卫结束 ===')
   next()
 })
 

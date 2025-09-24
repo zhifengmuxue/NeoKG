@@ -340,9 +340,9 @@ const getRandomKeywordColor = (): string => {
 const nodeColorMap = new Map<string, string>()
 
 const getNodeColor = (node: Node): string => {
-  // 优先级1: 路径高亮
+  // 优先级1: 路径高亮 - 使用更鲜艳的颜色
   if (pathHighlightNodes.value.has(node.id)) {
-    return '#FF4757' // 红色高亮
+    return '#FF6B35' // 更鲜艳的橙红色高亮
   }
   
   // 优先级2: 社区颜色
@@ -659,31 +659,40 @@ const applyFilters = (): void => {
   
   console.log(`筛选结果: ${filteredNodes.length} 个节点, ${filteredEdges.length} 条边`)
   
-  // 更新图表配置 - 重点是这里应用新颜色
+  // 更新图表配置 - 增强路径高亮效果
   const option: EChartsOption = {
     series: [
       {
         type: 'graph',
         layout: 'force',
-        data: filteredNodes.map((node: Node) => ({
-          id: node.id,
-          name: node.label,
-          symbolSize: node.size || 20,
-          itemStyle: {
-            color: getNodeColor(node) // 这里会应用社区颜色或路径高亮
-          },
-          category: node.id.startsWith('doc-') ? 0 : 1,
-          label: {
-            show: true,
-            position: 'bottom',
-            fontSize: 9,
-            color: isDarkMode.value ? '#ffffff' : '#333333',
-            formatter: (params: any) => {
-              const name = params.data.name || ''
-              return name.length > 10 ? name.substring(0, 10) + '...' : name
+        data: filteredNodes.map((node: Node) => {
+          const isHighlighted = pathHighlightNodes.value.has(node.id)
+          return {
+            id: node.id,
+            name: node.label,
+            symbolSize: isHighlighted ? 25 : (node.size || 20), // 高亮节点更大
+            itemStyle: {
+              color: getNodeColor(node),
+              borderColor: isHighlighted ? '#FF6B35' : undefined,
+              borderWidth: isHighlighted ? 3 : 0, // 高亮节点加边框
+              shadowColor: isHighlighted ? '#FF6B35' : undefined,
+              shadowBlur: isHighlighted ? 10 : 0, // 高亮节点加阴影
+              opacity: pathHighlightNodes.value.size > 0 ? (isHighlighted ? 1 : 0.3) : 1 // 非高亮节点半透明
+            },
+            category: node.id.startsWith('doc-') ? 0 : 1,
+            label: {
+              show: true,
+              position: 'bottom',
+              fontSize: isHighlighted ? 11 : 9, // 高亮节点标签更大
+              color: isDarkMode.value ? '#ffffff' : '#333333',
+              fontWeight: isHighlighted ? 'bold' : 'normal', // 高亮节点标签加粗
+              formatter: (params: any) => {
+                const name = params.data.name || ''
+                return name.length > 10 ? name.substring(0, 10) + '...' : name
+              }
             }
           }
-        })),
+        }),
         edges: filteredEdges.map((edge: Edge) => {
           const edgeKey = `${edge.source}-${edge.target}`
           const reverseEdgeKey = `${edge.target}-${edge.source}`
@@ -696,9 +705,11 @@ const applyFilters = (): void => {
             source: edge.source,
             target: edge.target,
             lineStyle: {
-              width: isHighlighted ? 3 : 1,
-              opacity: isHighlighted ? 1 : 0.6,
-              color: isHighlighted ? '#FF4757' : (isDarkMode.value ? '#64748b' : '#94a3b8')
+              width: isHighlighted ? 4 : 1, // 高亮边更粗
+              opacity: pathHighlightEdges.value.size > 0 ? (isHighlighted ? 1 : 0.2) : 0.6, // 非高亮边更透明
+              color: isHighlighted ? '#FF6B35' : (isDarkMode.value ? '#64748b' : '#94a3b8'), // 高亮边鲜艳颜色
+              shadowColor: isHighlighted ? '#FF6B35' : undefined,
+              shadowBlur: isHighlighted ? 5 : 0 // 高亮边加阴影
             }
           }
         }),
@@ -711,7 +722,7 @@ const applyFilters = (): void => {
         draggable: true,
         symbol: 'circle',
         edgeSymbol: ['none', 'arrow'],
-        edgeSymbolSize: 6,
+        edgeSymbolSize: 8, // 稍微增大箭头
         edgeLabel: {
           show: false
         },
