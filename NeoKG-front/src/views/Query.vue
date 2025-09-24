@@ -107,14 +107,14 @@
               </div>
               
               <!-- 社区详情列表 -->
-              <div class="community-details" v-if="communityResults.communities && communityResults.communities.length > 0">
+              <div class="community-details" v-if="communityResults && communityResults.communities && communityResults.communities.length > 0">
                 <div class="community-list-header">
                   <span class="community-list-title">社区详情:</span>
                 </div>
                 <div class="community-item" v-for="(community, index) in communityResults.communities" :key="community.id || index">
                   <span 
                     class="community-color" 
-                    :style="{ backgroundColor: communityColors[index % communityColors.length] }"
+                    :style="{ backgroundColor: community.color }"
                   ></span>
                   <span class="community-text">
                     社区{{ index + 1 }}: {{ community.nodes?.length || 0 }}个节点
@@ -280,31 +280,39 @@ interface AnomalyResponse {
   timestamp: number
 }
 
-// 修改社区发现数据类型
-interface CommunityData {
+// 修改社区发现数据类型 - 简化为只存储社区信息
+interface CommunityInfo {
   communities: Array<{
     id: number
     nodes: string[]
+    color: string
   }>
 }
 
 interface CommunityResponse {
   code: string
   message: string | null
-  data: CommunityData
+  data: {
+    nodes: Node[]
+    edges: Edge[]
+  } | null
   timestamp: number
 }
 
-// 新增：路径搜索数据类型
+// 添加缺失的路径搜索数据类型
 interface PathSearchData {
   nodes: Node[]
   edges: Edge[]
 }
 
+// 修正路径搜索响应类型定义
 interface PathSearchResponse {
   code: string
   message: string | null
-  data: PathSearchData
+  data: {
+    nodes: Node[]
+    edges: Edge[]
+  } | null
   timestamp: number
 }
 
@@ -318,9 +326,9 @@ const keywordColors = [
 
 // 社区颜色数组
 const communityColors = [
+  '#EE6666', '#73C0DE', '#91CC75', '#FAC858', '#5470C6',
   '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FECA57',
-  '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43',
-  '#EE5A6F', '#0ABDE3', '#7BED9F', '#70A1FF', '#5352ED'
+  '#FF9FF3', '#54A0FF', '#5F27CD', '#00D2D3', '#FF9F43'
 ]
 
 // 生成随机颜色的函数
@@ -332,30 +340,30 @@ const getRandomKeywordColor = (): string => {
 const nodeColorMap = new Map<string, string>()
 
 const getNodeColor = (node: Node): string => {
-  // 如果有社区结果，使用社区颜色
-  if (communityResults.value && communityActive.value && communityNodeColors.value.has(node.id)) {
-    return communityNodeColors.value.get(node.id)!
-  }
-  
-  // 如果在路径高亮中，使用高亮颜色
+  // 优先级1: 路径高亮
   if (pathHighlightNodes.value.has(node.id)) {
     return '#FF4757' // 红色高亮
   }
   
-  // 如果是文档节点，使用固定颜色
-  if (node.id.startsWith('doc-')) {
-    return '#5470c6' // 蓝色
+  // 优先级2: 社区颜色
+  if (communityResults.value && communityActive.value && communityNodeColors.value.has(node.id)) {
+    const communityColor = communityNodeColors.value.get(node.id)
+    console.log(`节点 ${node.id} 使用社区颜色: ${communityColor}`)
+    return communityColor!
   }
   
-  // 如果是关键词节点，使用随机颜色（但保持一致性）
-  if (node.id.startsWith('kw-')) {
+  // 优先级3: 默认节点类型颜色
+  if (node.id.startsWith('doc-')) {
+    return '#5470c6' // 蓝色 - 文档
+  } else if (node.id.startsWith('kw-')) {
+    // 关键词使用一致的随机颜色
     if (!nodeColorMap.has(node.id)) {
       nodeColorMap.set(node.id, getRandomKeywordColor())
     }
     return nodeColorMap.get(node.id)!
   }
   
-  // 默认颜色
+  // 优先级4: 备用颜色
   return node.color || '#91cc75'
 }
 
@@ -373,7 +381,7 @@ const anomalyActive = ref(false)
 
 // 社区发现相关状态
 const communityLoading = ref(false)
-const communityResults = ref<CommunityData | null>(null)
+const communityResults = ref<CommunityInfo | null>(null)
 const communityNodeColors = ref<Map<string, string>>(new Map())
 // 新增：社区发现激活状态
 const communityActive = ref(false)
@@ -443,119 +451,305 @@ const getCommunityButtonText = (): string => {
   return communityActive.value ? '收起社区发现' : '社区发现'
 }
 
-// 异常检测按钮文本
+// 异常检测按钮文本  
 const getAnomalyButtonText = (): string => {
   if (anomalyLoading.value) return '刷新检测中...'
   return anomalyActive.value ? '收起异常检测' : '运行异常检测'
 }
 
-// 获取社区数量
+// 获取路径长度的辅助函数
+const getPathLength = (): number => {
+  return pathResults.value?.nodes?.length || 0
+}
+
+// 修复社区详情显示函数
 const getCommunityCount = (): number => {
   if (!communityResults.value?.communities || !Array.isArray(communityResults.value.communities)) {
     return 0
   }
-  return communityResults.value.communities.filter(community => 
-    community && Array.isArray(community.nodes) && community.nodes.length > 0
-  ).length
+  return communityResults.value.communities.length
 }
 
-// 获取最大社区大小
 const getLargestCommunitySize = (): number => {
   if (!communityResults.value?.communities || !Array.isArray(communityResults.value.communities)) {
     return 0
   }
   
-  const sizes = communityResults.value.communities
-    .filter(community => community && Array.isArray(community.nodes))
-    .map(community => community.nodes.length)
-  
+  const sizes = communityResults.value.communities.map(community => community.nodes.length)
   return sizes.length > 0 ? Math.max(...sizes) : 0
 }
 
-// 获取路径长度
-const getPathLength = (): number => {
-  return pathResults.value?.nodes?.length || 0
+// 新增：从节点ID中提取数字ID的辅助函数
+const extractNumericId = (nodeId: string): string => {
+  // 从 "kw-1970310627054456832" 或 "doc-1969949281729253376" 中提取数字部分
+  const match = nodeId.match(/(?:kw-|doc-)(\d+)/)
+  return match ? match[1] : nodeId
 }
 
-// 异常检测
-const runAnomalyDetection = async (): Promise<void> => {
-  // 如果已经激活，则收起
-  if (anomalyActive.value) {
-    anomalyActive.value = false
-    anomalyResults.value = null
+// 添加核心的数据加载函数
+const loadGraphData = async (): Promise<void> => {
+  try {
+    loadingMessage.value = '正在获取图数据...'
+    console.log('开始加载图数据')
+    
+    const data = await getDocKeywordGraph()
+    console.log('获取到的图数据:', data)
+    
+    if (!data || !data.nodes || !data.edges) {
+      throw new Error('获取的图数据格式不正确')
+    }
+    
+    // 保存原始数据
+    originalGraphData.value = data
+    
+    console.log(`成功加载图数据: ${data.nodes.length} 个节点, ${data.edges.length} 条边`)
+    
+    // 初始化图表
+    await initChart()
+    
+  } catch (error: any) {
+    console.error('加载图数据失败:', error)
+    loadingMessage.value = `加载失败: ${error.message || '未知错误'}`
+  }
+}
+
+// 添加图表初始化函数
+const initChart = async (): Promise<void> => {
+  if (!graphCanvas.value || !originalGraphData.value) {
+    console.error('图表容器或数据未准备好')
     return
   }
-
-  anomalyLoading.value = true
+  
   try {
-    console.log('开始刷新图分析数据...')
+    loadingMessage.value = '正在初始化图表...'
     
-    // 1. 先调用刷新接口
-    const refreshResponse = await fetch(ANALYSIS_REFRESH_API_URL, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
+    // 如果已存在图表实例，先销毁
+    if (myChart.value) {
+      myChart.value.dispose()
+    }
+    
+    // 创建新的图表实例
+    myChart.value = echarts.init(graphCanvas.value, isDarkMode.value ? 'dark' : 'default')
+    
+    console.log('ECharts 实例创建成功')
+    
+    // 设置基础图表配置
+    const baseOption: EChartsOption = {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item',
+        formatter: (params: any) => {
+          if (params.dataType === 'node') {
+            return `<div style="font-size: 12px;">
+              <strong>${params.data.name}</strong><br/>
+              类型: ${params.data.id.startsWith('doc-') ? '文档' : '关键词'}<br/>
+              ID: ${params.data.id}
+            </div>`
+          } else if (params.dataType === 'edge') {
+            return `<div style="font-size: 12px;">
+              关系: ${params.data.source} → ${params.data.target}
+            </div>`
+          }
+          return ''
+        }
+      },
+      legend: {
+        show: false
+      },
+      series: [
+        {
+          type: 'graph',
+          layout: 'force',
+          data: [],
+          edges: [],
+          categories: [
+            { name: '文档', itemStyle: { color: '#5470c6' } },
+            { name: '关键词', itemStyle: { color: '#91cc75' } }
+          ],
+          roam: true,
+          focusNodeAdjacency: true,
+          draggable: true,
+          symbol: 'circle',
+          symbolSize: (value: any, params: any) => {
+            return params.data.symbolSize || 20
+          },
+          edgeSymbol: ['none', 'arrow'],
+          edgeSymbolSize: 6,
+          edgeLabel: {
+            show: false
+          },
+          lineStyle: {
+            opacity: 0.6,
+            width: 1,
+            curveness: 0.1
+          },
+          label: {
+            show: true,
+            position: 'bottom',
+            fontSize: 9,
+            color: isDarkMode.value ? '#ffffff' : '#333333',
+            formatter: (params: any) => {
+              const name = params.data.name || ''
+              return name.length > 10 ? name.substring(0, 10) + '...' : name
+            }
+          },
+          force: {
+            repulsion: 800,
+            gravity: 0.1,
+            edgeLength: 100,
+            layoutAnimation: true
+          },
+          emphasis: {
+            focus: 'adjacency',
+            lineStyle: {
+              width: 3
+            }
+          }
+        }
+      ]
+    }
+    
+    myChart.value.setOption(baseOption)
+    
+    // 应用初始筛选（这会设置图表数据）
+    applyFilters()
+    
+    // 监听窗口大小变化
+    const resizeObserver = new ResizeObserver(() => {  
+      if (myChart.value) {
+        myChart.value.resize()
       }
     })
     
-    if (!refreshResponse.ok) {
-      throw new Error(`刷新失败! status: ${refreshResponse.status}`)
-    }
+    resizeObserver.observe(graphCanvas.value)
     
-    const refreshResult = await refreshResponse.json()
-    console.log('图分析数据刷新完成:', refreshResult)
+    chartLoaded.value = true
+    console.log('图表初始化完成')
     
-    // 2. 然后获取异常检测数据
-    console.log('开始获取异常检测数据...')
-    const anomalyResponse = await fetch(ANOMALY_API_URL, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    })
-    
-    if (!anomalyResponse.ok) {
-      throw new Error(`HTTP error! status: ${anomalyResponse.status}`)
-    }
-    
-    const result: AnomalyResponse = await anomalyResponse.json()
-    console.log('异常检测完成:', result)
-    
-    if (result.code === 'SUCCESS') {
-      anomalyResults.value = result.data
-      anomalyActive.value = true
-      console.log('异常检测结果:', result.data)
-    } else {
-      throw new Error(result.message || '异常检测失败')
-    }
   } catch (error) {
-    console.error('异常检测失败:', error)
-    
-    // 使用模拟数据作为备用
-    anomalyResults.value = {
-      selfLoops: [],
-      isolatedNodes: [1, 2], // 模拟2个孤立节点
-      duplicateRelations: [],
-      invalidRelations: [1]
-    }
-    anomalyActive.value = true
-  } finally {
-    anomalyLoading.value = false
+    console.error('初始化图表失败:', error)
+    loadingMessage.value = `初始化失败: ${error.message || '未知错误'}`
   }
 }
 
-// 社区发现函数
+// 添加应用筛选函数 - 这是渲染图表的核心函数
+const applyFilters = (): void => {
+  if (!myChart.value || !originalGraphData.value) {
+    console.warn('图表实例或原始数据未准备好')
+    return
+  }
+  
+  console.log('应用筛选和颜色更新...')
+  
+  // 筛选显示的节点类型
+  const filteredNodes = originalGraphData.value.nodes.filter(node => {
+    if (node.id.startsWith('doc-')) {
+      return entityTypes.value.find(et => et.name.includes('Document'))?.selected ?? true
+    } else if (node.id.startsWith('kw-')) {
+      return entityTypes.value.find(et => et.name.includes('Keyword'))?.selected ?? true
+    }
+    return true
+  })
+  
+  // 筛选对应的边
+  const nodeIds = new Set(filteredNodes.map(node => node.id))
+  const filteredEdges = originalGraphData.value.edges.filter(edge => 
+    nodeIds.has(edge.source) && nodeIds.has(edge.target)
+  )
+  
+  console.log(`筛选结果: ${filteredNodes.length} 个节点, ${filteredEdges.length} 条边`)
+  
+  // 更新图表配置 - 重点是这里应用新颜色
+  const option: EChartsOption = {
+    series: [
+      {
+        type: 'graph',
+        layout: 'force',
+        data: filteredNodes.map((node: Node) => ({
+          id: node.id,
+          name: node.label,
+          symbolSize: node.size || 20,
+          itemStyle: {
+            color: getNodeColor(node) // 这里会应用社区颜色或路径高亮
+          },
+          category: node.id.startsWith('doc-') ? 0 : 1,
+          label: {
+            show: true,
+            position: 'bottom',
+            fontSize: 9,
+            color: isDarkMode.value ? '#ffffff' : '#333333',
+            formatter: (params: any) => {
+              const name = params.data.name || ''
+              return name.length > 10 ? name.substring(0, 10) + '...' : name
+            }
+          }
+        })),
+        edges: filteredEdges.map((edge: Edge) => {
+          const edgeKey = `${edge.source}-${edge.target}`
+          const reverseEdgeKey = `${edge.target}-${edge.source}`
+          
+          // 检查是否为路径高亮边
+          const isHighlighted = pathHighlightEdges.value.has(edgeKey) || 
+                               pathHighlightEdges.value.has(reverseEdgeKey)
+          
+          return {
+            source: edge.source,
+            target: edge.target,
+            lineStyle: {
+              width: isHighlighted ? 3 : 1,
+              opacity: isHighlighted ? 1 : 0.6,
+              color: isHighlighted ? '#FF4757' : (isDarkMode.value ? '#64748b' : '#94a3b8')
+            }
+          }
+        }),
+        categories: [
+          { name: '文档', itemStyle: { color: '#5470c6' } },
+          { name: '关键词', itemStyle: { color: '#91cc75' } }
+        ],
+        roam: true,
+        focusNodeAdjacency: true,
+        draggable: true,
+        symbol: 'circle',
+        edgeSymbol: ['none', 'arrow'],
+        edgeSymbolSize: 6,
+        edgeLabel: {
+          show: false
+        },
+        lineStyle: {
+          opacity: 0.6,
+          width: 1,
+          curveness: 0.1
+        },
+        force: {
+          repulsion: 800,
+          gravity: 0.1,
+          edgeLength: 100,
+          layoutAnimation: true
+        },
+        emphasis: {
+          focus: 'adjacency',
+          lineStyle: {
+            width: 3
+          }
+        }
+      }
+    ]
+  }
+  
+  myChart.value.setOption(option, true) // 第二个参数 true 表示不合并，完全替换
+  console.log('图表数据更新完成')
+}
+
+// 完全重写社区发现函数 - 纯染色逻辑，不重构图
 const runCommunityDetection = async (): Promise<void> => {
   // 如果已经激活，则收起
   if (communityActive.value) {
     communityActive.value = false
     communityResults.value = null
     communityNodeColors.value.clear()
-    // 清除路径高亮，恢复原始状态
     pathHighlightNodes.value.clear()
     pathHighlightEdges.value.clear()
-    pathResults.value = null
-    applyFilters() // 恢复原始颜色
+    applyFilters()
     return
   }
 
@@ -569,205 +763,112 @@ const runCommunityDetection = async (): Promise<void> => {
       }
     })
     
+    console.log('社区发现API响应状态:', response.status)
+    
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
     
-    const result: CommunityResponse = await response.json()
-    console.log('社区发现API响应:', result)
+    const result = await response.json()
+    console.log('社区发现API完整响应:', JSON.stringify(result, null, 2))
     
-    if (result.code === 'SUCCESS' && result.data) {
-      // 验证数据结构
-      if (!result.data.communities || !Array.isArray(result.data.communities)) {
-        throw new Error('API返回的社区数据格式错误')
-      }
-      
-      // 过滤掉空的或无效的社区
-      const validCommunities = result.data.communities.filter(community => 
-        community && 
-        Array.isArray(community.nodes) && 
-        community.nodes.length > 0 &&
-        community.nodes.every(nodeId => typeof nodeId === 'string')
-      )
-      
-      if (validCommunities.length === 0) {
-        throw new Error('没有找到有效的社区数据')
-      }
-      
-      communityResults.value = { communities: validCommunities }
-      
-      // 为每个社区分配不同颜色
-      const newCommunityNodeColors = new Map<string, string>()
-      
-      validCommunities.forEach((community, communityIndex) => {
-        const color = communityColors[communityIndex % communityColors.length]
-        community.nodes.forEach(nodeId => {
-          // 验证节点ID是否存在于图中
-          if (originalGraphData.value?.nodes.some(node => node.id === nodeId)) {
-            newCommunityNodeColors.set(nodeId, color)
-          }
-        })
-      })
-      
-      communityNodeColors.value = newCommunityNodeColors
-      communityActive.value = true
-      
-      // 清除路径高亮
-      pathHighlightNodes.value.clear()
-      pathHighlightEdges.value.clear()
-      pathResults.value = null
-      
-      // 更新图表颜色
-      updateChartWithCommunities()
-      
-      console.log('社区发现结果处理完成:', {
-        有效社区数量: validCommunities.length,
-        最大社区大小: getLargestCommunitySize(),
-        着色节点数: newCommunityNodeColors.size
-      })
-    } else {
-      throw new Error(result.message || '社区发现失败')
+    // 简化成功检查 - 只要有nodes数据就认为成功
+    let nodes = null
+    
+    // 检查多种可能的数据结构
+    if (result && result.nodes && Array.isArray(result.nodes)) {
+      nodes = result.nodes
+      console.log('从result.nodes提取数据')
+    } else if (result && result.data && result.data.nodes && Array.isArray(result.data.nodes)) {
+      nodes = result.data.nodes
+      console.log('从result.data.nodes提取数据')
+    } else if (Array.isArray(result)) {
+      nodes = result
+      console.log('result本身就是数组')
     }
+    
+    console.log('提取的节点数据:', nodes)
+    console.log('节点数据长度:', nodes ? nodes.length : 0)
+    
+    if (!nodes || !Array.isArray(nodes) || nodes.length === 0) {
+      console.warn('没有找到有效的节点数据')
+      alert('社区发现API调用成功，但没有返回有效的节点数据')
+      return
+    }
+    
+    console.log('API返回成功，开始处理社区颜色映射...')
+    console.log('前3个节点数据示例:', nodes.slice(0, 3))
+    
+    // 从API返回的节点中提取颜色信息
+    const colorToCommunityMap = new Map<string, any[]>()
+    const newCommunityNodeColors = new Map<string, string>()
+    
+    // 按颜色分组节点
+    nodes.forEach((apiNode: any, index: number) => {
+      const color = apiNode.color
+      const nodeId = apiNode.id
+      const nodeLabel = apiNode.label || apiNode.name
+      
+      console.log(`处理节点${index + 1}:`, { id: nodeId, label: nodeLabel, color: color })
+      
+      if (!color || !nodeId) {
+        console.warn('节点缺少必要字段:', apiNode)
+        return
+      }
+      
+      if (!colorToCommunityMap.has(color)) {
+        colorToCommunityMap.set(color, [])
+      }
+      colorToCommunityMap.get(color)!.push(apiNode)
+      
+      // 将颜色映射应用到节点
+      newCommunityNodeColors.set(nodeId, color)
+      console.log(`节点 ${nodeId}(${nodeLabel}) 分配社区颜色: ${color}`)
+    })
+    
+    // 构建社区统计信息
+    const communities = Array.from(colorToCommunityMap.entries()).map(([color, nodes], index) => ({
+      id: index + 1,
+      nodes: nodes.map(node => node.id),
+      color: color
+    }))
+    
+    // 更新状态
+    communityResults.value = { communities }
+    communityNodeColors.value = newCommunityNodeColors
+    communityActive.value = true
+    
+    console.log('社区发现完成:', {
+      社区数量: communities.length,
+      着色节点数: newCommunityNodeColors.size,
+      社区详情: communities.map(c => ({ 颜色: c.color, 节点数: c.nodes.length }))
+    })
+    
+    // 清除路径高亮
+    pathHighlightNodes.value.clear()
+    pathHighlightEdges.value.clear()
+    
+    // 应用新的社区颜色
+    applyFilters()
+    
+    console.log('社区颜色已应用到图表')
   } catch (error) {
-    console.error('社区发现失败，使用模拟数据:', error)
+    console.error('社区发现失败:', error)
+    console.error('错误详情:', error instanceof Error ? error.message : String(error))
     
-    // 使用真实图数据的节点ID生成更好的模拟社区数据
-    if (originalGraphData.value && originalGraphData.value.nodes.length > 0) {
-      const nodes = originalGraphData.value.nodes
-      const edges = originalGraphData.value.edges
-      const totalNodes = nodes.length
-      
-      // 基于节点连接关系生成更合理的社区
-      const communities = generateMockCommunities(nodes, edges)
-      
-      communityResults.value = { communities }
-      
-      // 为模拟数据分配颜色
-      const newCommunityNodeColors = new Map<string, string>()
-      communities.forEach((community, communityIndex) => {
-        const color = communityColors[communityIndex % communityColors.length]
-        community.nodes.forEach(nodeId => {
-          newCommunityNodeColors.set(nodeId, color)
-        })
-      })
-      
-      communityNodeColors.value = newCommunityNodeColors
-      communityActive.value = true
-      
-      // 清除路径高亮
-      pathHighlightNodes.value.clear()
-      pathHighlightEdges.value.clear()
-      pathResults.value = null
-      
-      updateChartWithCommunities()
-      
-      console.log('使用改进的模拟社区数据:', {
-        社区数量: communities.length,
-        总节点数: totalNodes,
-        社区详情: communities.map((c, i) => `社区${i+1}: ${c.nodes.length}个节点`)
-      })
-    } else {
-      console.error('没有可用的图数据生成模拟社区')
-    }
+    // 清除状态
+    communityResults.value = null
+    communityNodeColors.value.clear()
+    communityActive.value = false
+    
+    const errorMessage = error instanceof Error ? error.message : '网络请求失败'
+    alert(`社区发现失败: ${errorMessage}`)
   } finally {
     communityLoading.value = false
   }
 }
 
-// 生成更合理的模拟社区数据
-const generateMockCommunities = (nodes: Node[], edges: Edge[]) => {
-  const communities = []
-  
-  // 按节点类型分组作为基础社区
-  const docNodes = nodes.filter(node => node.id.startsWith('doc-'))
-  const kwNodes = nodes.filter(node => node.id.startsWith('kw-'))
-  
-  // 如果文档节点足够多，按大小分组
-  if (docNodes.length >= 6) {
-    const sortedDocs = docNodes.sort((a, b) => (b.size || 20) - (a.size || 20))
-    const midPoint = Math.ceil(sortedDocs.length / 2)
-    
-    communities.push({
-      id: 1,
-      nodes: sortedDocs.slice(0, midPoint).map(n => n.id)
-    })
-    
-    if (sortedDocs.length > midPoint) {
-      communities.push({
-        id: 2,
-        nodes: sortedDocs.slice(midPoint).map(n => n.id)
-      })
-    }
-  } else {
-    // 文档数量少，作为一个社区
-    if (docNodes.length > 0) {
-      communities.push({
-        id: 1,
-        nodes: docNodes.map(n => n.id)
-      })
-    }
-  }
-  
-  // 关键词按字母或大小分组
-  if (kwNodes.length >= 8) {
-    const sortedKeywords = kwNodes.sort((a, b) => (b.size || 20) - (a.size || 20))
-    const chunkSize = Math.ceil(kwNodes.length / 3)
-    
-    for (let i = 0; i < 3; i++) {
-      const startIndex = i * chunkSize
-      const endIndex = Math.min(startIndex + chunkSize, kwNodes.length)
-      const chunk = sortedKeywords.slice(startIndex, endIndex)
-      
-      if (chunk.length > 0) {
-        communities.push({
-          id: communities.length + 1,
-          nodes: chunk.map(n => n.id)
-        })
-      }
-    }
-  } else if (kwNodes.length > 0) {
-    // 关键词数量少，分成两组或一组
-    if (kwNodes.length >= 4) {
-      const midPoint = Math.ceil(kwNodes.length / 2)
-      communities.push({
-        id: communities.length + 1,
-        nodes: kwNodes.slice(0, midPoint).map(n => n.id)
-      })
-      communities.push({
-        id: communities.length + 1,
-        nodes: kwNodes.slice(midPoint).map(n => n.id)
-      })
-    } else {
-      communities.push({
-        id: communities.length + 1,
-        nodes: kwNodes.map(n => n.id)
-      })
-    }
-  }
-  
-  // 确保至少有一个社区
-  if (communities.length === 0 && nodes.length > 0) {
-    communities.push({
-      id: 1,
-      nodes: nodes.map(n => n.id)
-    })
-  }
-  
-  return communities
-}
-
-// 更新图表社区颜色
-const updateChartWithCommunities = (): void => {
-  if (!myChart.value || !originalGraphData.value) return
-  
-  console.log('开始更新图表社区颜色')
-  console.log('社区节点颜色映射:', communityNodeColors.value)
-  
-  // 应用筛选并更新颜色
-  applyFilters()
-}
-
-// 新增：路径搜索
+// 修复路径搜索函数 - 简化错误检查逻辑
 const runPathSearch = async (): Promise<void> => {
   pathLoading.value = true
   try {
@@ -775,7 +876,7 @@ const runPathSearch = async (): Promise<void> => {
     console.log('起始节点:', pathSearch.value.startKeyword, '类型:', pathSearch.value.startType)
     console.log('目标节点:', pathSearch.value.endKeyword, '类型:', pathSearch.value.endType)
     
-    // 根据标签和类型查找对应的节点ID
+    // 查找节点
     const startNode = originalGraphData.value?.nodes.find(node => {
       const prefix = pathSearch.value.startType === 'KEYWORD' ? 'kw-' : 'doc-'
       return node.id.startsWith(prefix) && node.label === pathSearch.value.startKeyword
@@ -790,18 +891,153 @@ const runPathSearch = async (): Promise<void> => {
       throw new Error(`未找到节点: ${!startNode ? pathSearch.value.startKeyword : pathSearch.value.endKeyword}`)
     }
     
-    console.log('找到起始节点ID:', startNode.id)
-    console.log('找到目标节点ID:', endNode.id)
+    console.log('找到起始节点:', startNode)
+    console.log('找到目标节点:', endNode)
     
-    // 使用正确的参数名：startId 和 endId
+    // 提取数字ID
+    const startNumericId = extractNumericId(startNode.id)
+    const endNumericId = extractNumericId(endNode.id)
+    
+    console.log('提取的数字ID:', startNumericId, '->', endNumericId)
+    
     const params = new URLSearchParams({
-      startId: startNode.id,
-      endId: endNode.id
+      startId: startNumericId,
+      endId: endNumericId
     })
     
-    console.log('请求参数:', params.toString())
+    console.log('请求URL:', `${PATH_SEARCH_API_URL}?${params.toString()}`)
     
     const response = await fetch(`${PATH_SEARCH_API_URL}?${params.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    
+    console.log('BFS路径搜索API响应状态:', response.status)
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const result = await response.json()
+    console.log('BFS路径搜索API完整响应:', JSON.stringify(result, null, 2))
+    
+    // 简化成功检查 - 只要有nodes数据就认为成功
+    let pathData = null
+    
+    // 检查多种可能的数据结构
+    if (result && result.nodes && Array.isArray(result.nodes)) {
+      pathData = { nodes: result.nodes, edges: result.edges || [] }
+      console.log('从result直接提取数据')
+    } else if (result && result.data && result.data.nodes && Array.isArray(result.data.nodes)) {
+      pathData = result.data
+      console.log('从result.data提取数据')
+    } else if (result && typeof result === 'object') {
+      // 尝试从任何包含nodes的对象中提取
+      const keys = Object.keys(result)
+      for (const key of keys) {
+        if (result[key] && result[key].nodes && Array.isArray(result[key].nodes)) {
+          pathData = result[key]
+          console.log(`从result.${key}提取数据`)
+          break
+        }
+      }
+    }
+    
+    console.log('提取的路径数据:', pathData)
+    
+    if (!pathData || !pathData.nodes || !Array.isArray(pathData.nodes) || pathData.nodes.length === 0) {
+      console.log('API调用成功但没有找到路径')
+      pathHighlightNodes.value.clear()
+      pathHighlightEdges.value.clear()
+      pathResults.value = null
+      applyFilters()
+      alert('未找到连接这两个节点的路径')
+      return
+    }
+    
+    pathResults.value = pathData
+    
+    console.log('找到路径:', pathData.nodes.map((n: any) => `${n.id}(${n.label})`))
+    
+    // 高亮路径节点
+    const highlightNodes = new Set(pathData.nodes.map((n: any) => n.id))
+    
+    // 处理路径边
+    const highlightEdges = new Set<string>()
+    if (pathData.edges && Array.isArray(pathData.edges) && pathData.edges.length > 0) {
+      console.log('处理API返回的边数据:', pathData.edges)
+      
+      // 创建数字ID到完整ID的映射
+      const numericToFullIdMap = new Map<string, string>()
+      if (originalGraphData.value) {
+        originalGraphData.value.nodes.forEach(node => {
+          const numericId = extractNumericId(node.id)
+          numericToFullIdMap.set(numericId, node.id)
+        })
+      }
+      
+      pathData.edges.forEach((edge: any) => {
+        console.log('处理边:', edge)
+        const sourceFullId = numericToFullIdMap.get(edge.source) || edge.source
+        const targetFullId = numericToFullIdMap.get(edge.target) || edge.target
+        
+        console.log(`边映射: ${edge.source}→${sourceFullId}, ${edge.target}→${targetFullId}`)
+        
+        highlightEdges.add(`${sourceFullId}-${targetFullId}`)
+        highlightEdges.add(`${targetFullId}-${sourceFullId}`)
+      })
+    } else {
+      console.log('没有边数据，根据节点顺序生成边')
+      // 根据节点顺序生成边
+      for (let i = 0; i < pathData.nodes.length - 1; i++) {
+        const currentNode = pathData.nodes[i]
+        const nextNode = pathData.nodes[i + 1]
+        highlightEdges.add(`${currentNode.id}-${nextNode.id}`)
+        highlightEdges.add(`${nextNode.id}-${currentNode.id}`)
+      }
+    }
+    
+    pathHighlightNodes.value = highlightNodes
+    pathHighlightEdges.value = highlightEdges
+    
+    console.log('路径高亮节点:', Array.from(highlightNodes))
+    console.log('路径高亮边:', Array.from(highlightEdges))
+    
+    // 更新图表
+    applyFilters()
+    
+    console.log('BFS路径搜索完成')
+  } catch (error) {
+    console.error('BFS路径搜索失败:', error)
+    console.error('错误详情:', error instanceof Error ? error.message : String(error))
+    
+    pathHighlightNodes.value.clear()
+    pathHighlightEdges.value.clear()
+    pathResults.value = null
+    applyFilters()
+    
+    const errorMessage = error instanceof Error ? error.message : '网络请求失败'
+    alert(`路径搜索失败: ${errorMessage}`)
+  } finally {
+    pathLoading.value = false
+  }
+}
+
+// 异常检测函数
+const runAnomalyDetection = async (): Promise<void> => {
+  // 如果已经激活，则收起
+  if (anomalyActive.value) {
+    anomalyActive.value = false
+    anomalyResults.value = null
+    return
+  }
+
+  anomalyLoading.value = true
+  try {
+    console.log('开始异常检测...')
+    const response = await fetch(ANOMALY_API_URL, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -812,731 +1048,70 @@ const runPathSearch = async (): Promise<void> => {
       throw new Error(`HTTP error! status: ${response.status}`)
     }
     
-    const result: PathSearchResponse = await response.json()
-    console.log('BFS路径搜索API响应:', result)
+    const result: AnomalyResponse = await response.json()
+    console.log('异常检测API响应:', result)
     
-    if (result.code === 'SUCCESS' && result.data) {
-      pathResults.value = result.data
-      
-      // 验证返回的路径数据
-      if (!result.data.nodes || result.data.nodes.length === 0) {
-        console.warn('API返回的路径为空')
-        throw new Error('未找到连接路径')
-      }
-      
-      console.log('找到路径节点:', result.data.nodes.map(n => `${n.id}(${n.label})`))
-      console.log('找到路径边:', result.data.edges)
-      
-      // 高亮路径节点
-      const highlightNodes = new Set(result.data.nodes.map(n => n.id))
-      
-      // 高亮路径边 - 改进边的匹配逻辑
-      const highlightEdges = new Set<string>()
-      if (result.data.edges && result.data.edges.length > 0) {
-        result.data.edges.forEach(edge => {
-          // 添加两个方向的边，因为图可能是无向的
-          highlightEdges.add(`${edge.source}-${edge.target}`)
-          highlightEdges.add(`${edge.target}-${edge.source}`)
-        })
-      } else {
-        // 如果API没有返回边，根据节点顺序生成边
-        for (let i = 0; i < result.data.nodes.length - 1; i++) {
-          const currentNode = result.data.nodes[i]
-          const nextNode = result.data.nodes[i + 1]
-          highlightEdges.add(`${currentNode.id}-${nextNode.id}`)
-          highlightEdges.add(`${nextNode.id}-${currentNode.id}`)
-        }
-      }
-      
-      pathHighlightNodes.value = highlightNodes
-      pathHighlightEdges.value = highlightEdges
-      
-      console.log('路径高亮节点:', Array.from(highlightNodes))
-      console.log('路径高亮边:', Array.from(highlightEdges))
-      
-      // 更新图表高亮
-      updateChartWithPathHighlight()
-      
-      console.log('BFS路径搜索结果处理完成')
+    if (result.code === 'SUCCESS') {
+      anomalyResults.value = result.data
+      anomalyActive.value = true
+      console.log('异常检测结果:', result.data)
     } else {
-      throw new Error(result.message || 'BFS路径搜索失败')
+      throw new Error(result.message || '异常检测失败')
     }
   } catch (error) {
-    console.error('BFS路径搜索失败:', error)
-    
-    // 使用模拟路径数据作为备用
-    if (originalGraphData.value && originalGraphData.value.nodes.length > 0) {
-      console.log('使用模拟路径数据作为备用')
-      
-      // 查找起始和目标节点
-      const startNode = originalGraphData.value.nodes.find(node => {
-        const prefix = pathSearch.value.startType === 'KEYWORD' ? 'kw-' : 'doc-'
-        return node.id.startsWith(prefix) && node.label === pathSearch.value.startKeyword
-      })
-      
-      const endNode = originalGraphData.value.nodes.find(node => {
-        const prefix = pathSearch.value.endType === 'KEYWORD' ? 'kw-' : 'doc-'
-        return node.id.startsWith(prefix) && node.label === pathSearch.value.endKeyword
-      })
-      
-      if (startNode && endNode) {
-        // 简单的BFS算法找路径
-        const path = findPathBFS(startNode, endNode, originalGraphData.value.edges)
-        
-        if (path && path.length > 0) {
-          // 构造路径边
-          const pathEdges = []
-          for (let i = 0; i < path.length - 1; i++) {
-            pathEdges.push({
-              source: path[i].id,
-              target: path[i + 1].id
-            })
-          }
-          
-          pathResults.value = {
-            nodes: path,
-            edges: pathEdges
-          }
-          
-          // 高亮路径节点和边
-          const highlightNodes = new Set(path.map(n => n.id))
-          const highlightEdges = new Set<string>()
-          
-          pathEdges.forEach(edge => {
-            highlightEdges.add(`${edge.source}-${edge.target}`)
-            highlightEdges.add(`${edge.target}-${edge.source}`)
-          })
-          
-          pathHighlightNodes.value = highlightNodes
-          pathHighlightEdges.value = highlightEdges
-          
-          updateChartWithPathHighlight()
-          
-          console.log('使用模拟BFS路径数据:', pathResults.value)
-        } else {
-          console.warn('未找到连接路径')
-          // 即使没找到路径也创建一个直接连接作为示例
-          pathResults.value = {
-            nodes: [startNode, endNode],
-            edges: [{ source: startNode.id, target: endNode.id }]
-          }
-          
-          const highlightNodes = new Set([startNode.id, endNode.id])
-          const highlightEdges = new Set([`${startNode.id}-${endNode.id}`, `${endNode.id}-${startNode.id}`])
-          
-          pathHighlightNodes.value = highlightNodes
-          pathHighlightEdges.value = highlightEdges
-          
-          updateChartWithPathHighlight()
-        }
-      } else {
-        throw new Error(`未找到节点: ${!startNode ? pathSearch.value.startKeyword : pathSearch.value.endKeyword}`)
-      }
-    }
-  } finally {
-    pathLoading.value = false
-  }
-}
-
-// 新增：简单的BFS路径查找算法
-const findPathBFS = (startNode: Node, endNode: Node, edges: Edge[]): Node[] | null => {
-  if (startNode.id === endNode.id) {
-    return [startNode]
-  }
-  
-  // 构建邻接表
-  const adjacencyList = new Map<string, string[]>()
-  edges.forEach(edge => {
-    if (!adjacencyList.has(edge.source)) {
-      adjacencyList.set(edge.source, [])
-    }
-    if (!adjacencyList.has(edge.target)) {
-      adjacencyList.set(edge.target, [])
-    }
-    adjacencyList.get(edge.source)!.push(edge.target)
-    adjacencyList.get(edge.target)!.push(edge.source) // 无向图
-  })
-  
-  // BFS算法
-  const queue = [{ nodeId: startNode.id, path: [startNode] }]
-  const visited = new Set<string>([startNode.id])
-  
-  while (queue.length > 0) {
-    const { nodeId, path } = queue.shift()!
-    
-    if (nodeId === endNode.id) {
-      return path
-    }
-    
-    const neighbors = adjacencyList.get(nodeId) || []
-    for (const neighborId of neighbors) {
-      if (!visited.has(neighborId)) {
-        visited.add(neighborId)
-        
-        // 找到邻居节点对象
-        const neighborNode = originalGraphData.value?.nodes.find(n => n.id === neighborId)
-        if (neighborNode) {
-          queue.push({
-            nodeId: neighborId,
-            path: [...path, neighborNode]
-          })
-        }
-      }
-    }
-  }
-  
-  return null // 未找到路径
-}
-
-// 改进的路径高亮更新函数
-const updateChartWithPathHighlight = (): void => {
-  if (!myChart.value || !originalGraphData.value) return
-  
-  console.log('开始更新图表路径高亮')
-  console.log('高亮节点:', Array.from(pathHighlightNodes.value))
-  console.log('高亮边:', Array.from(pathHighlightEdges.value))
-  
-  // 清除社区状态
-  communityActive.value = false
-  communityResults.value = null
-  communityNodeColors.value.clear()
-  
-  // 应用筛选并更新高亮
-  applyFilters()
-}
-
-// 改进的筛选应用函数 - 重点修复边的高亮逻辑
-const applyFilters = (): void => {
-  if (!myChart.value || !originalGraphData.value) return
-  
-  console.log('开始应用筛选条件')
-  console.log('当前社区激活状态:', communityActive.value)
-  console.log('当前路径高亮节点:', Array.from(pathHighlightNodes.value))
-  console.log('当前路径高亮边:', Array.from(pathHighlightEdges.value))
-  
-  // 获取选中的实体类型
-  const selectedEntityTypes = entityTypes.value
-    .filter(entity => entity.selected)
-    .map(entity => entity.name)
-  
-  console.log('选中的实体类型:', selectedEntityTypes)
-  
-  // 筛选节点
-  let filteredNodes = originalGraphData.value.nodes.filter((node: Node) => {
-    // 根据节点类型筛选
-    if (node.id.startsWith('doc-')) {
-      return selectedEntityTypes.includes('文档 (Document)')
-    } else if (node.id.startsWith('kw-')) {
-      return selectedEntityTypes.includes('关键词 (Keyword)')
-    }
-    return true
-  })
-  
-  // 获取筛选后的节点ID集合
-  const filteredNodeIds = new Set(filteredNodes.map(node => node.id))
-  
-  // 筛选边：只保留两端节点都存在的边
-  let filteredEdges = originalGraphData.value.edges.filter((edge: Edge) => {
-    return filteredNodeIds.has(edge.source) && filteredNodeIds.has(edge.target)
-  })
-  
-  // 转换为ECharts数据格式，使用社区颜色或路径高亮
-  const chartData = filteredNodes.map((node: Node) => {
-    const nodeColor = getNodeColor(node)
-    const isHighlighted = pathHighlightNodes.value.has(node.id)
-    
-    console.log(`节点 ${node.id} (${node.label}) 分配颜色: ${nodeColor}, 是否高亮: ${isHighlighted}`)
-    
-    return {
-      id: node.id,
-      name: node.label,
-      symbolSize: isHighlighted ? (node.size || 20) * 1.5 : (node.size || 20), // 路径节点放大
-      itemStyle: {
-        color: nodeColor, // 使用更新的颜色分配函数
-        borderColor: isHighlighted ? '#FF4757' : undefined, // 路径节点添加红色边框
-        borderWidth: isHighlighted ? 3 : 0
-      },
-      category: node.id.startsWith('doc-') ? 0 : 1,
-      label: {
-        show: isHighlighted, // 路径节点始终显示标签
-        fontSize: isHighlighted ? 12 : 9, // 路径节点字体放大
-        color: isDarkMode.value ? '#ffffff' : '#333333',
-        fontWeight: isHighlighted ? 'bold' : 'normal'
-      }
-    };
-  })
-  
-  const chartEdges = filteredEdges.map((edge: Edge) => {
-    // 改进边的高亮检测逻辑
-    const edgeKey1 = `${edge.source}-${edge.target}`
-    const edgeKey2 = `${edge.target}-${edge.source}`
-    const isHighlighted = pathHighlightEdges.value.has(edgeKey1) || pathHighlightEdges.value.has(edgeKey2)
-    
-    if (isHighlighted) {
-      console.log(`边 ${edgeKey1} 被高亮`)
-    }
-    
-    return {
-      source: edge.source,
-      target: edge.target,
-      lineStyle: {
-        width: isHighlighted ? 4 : 1, // 路径边加粗
-        opacity: isHighlighted ? 1 : 0.6,
-        color: isHighlighted ? '#FF4757' : (isDarkMode.value ? '#64748b' : '#94a3b8') // 路径边高亮颜色
-      }
-    };
-  })
-  
-  // 更新图表
-  myChart.value.setOption({
-    series: [{
-      data: chartData,
-      edges: chartEdges
-    }]
-  }, false)
-  
-  console.log(`筛选完成: 显示 ${filteredNodes.length} 个节点，${filteredEdges.length} 条边`)
-  console.log(`其中高亮节点: ${chartData.filter(n => pathHighlightNodes.value.has(n.id)).length} 个`)
-  console.log(`其中高亮边: ${chartEdges.filter(e => {
-    const key1 = `${e.source}-${e.target}`
-    const key2 = `${e.target}-${e.source}`
-    return pathHighlightEdges.value.has(key1) || pathHighlightEdges.value.has(key2)
-  }).length} 条`)
-}
-
-// 更新图表主题
-const updateChartTheme = (): void => {
-  if (!myChart.value) return
-  
-  console.log('更新图表主题到:', isDarkMode.value ? 'dark' : 'light')
-  
-  const currentOption = myChart.value.getOption() as any
-  
-  if (currentOption) {
-    const newOption = {
-      ...currentOption,
-      backgroundColor: isDarkMode.value ? '#1e293b' : '#ffffff',
-      title: [
-        {
-          ...(currentOption.title?.[0] || {}),
-          textStyle: {
-            color: isDarkMode.value ? '#ffffff' : '#333333'
-          }
-        }
-      ]
-    }
-
-    if (currentOption.series && currentOption.series[0]) {
-      newOption.series = [
-        {
-          ...currentOption.series[0],
-          lineStyle: {
-            ...(currentOption.series[0].lineStyle || {}),
-            color: isDarkMode.value ? '#64748b' : '#94a3b8'
-          }
-        }
-      ]
-    }
-
-    myChart.value.setOption(newOption, false)
-  }
-}
-
-// 初始化图表
-const initChart = async (): Promise<void> => {
-  try {
-    console.log('开始初始化图表，当前主题:', isDarkMode.value)
-    
-    if (!graphCanvas.value) {
-      console.error('图表容器未找到')
-      loadingMessage.value = '图表容器未找到'
-      return
-    }
-
-    console.log('图表容器尺寸:', graphCanvas.value.offsetWidth, 'x', graphCanvas.value.offsetHeight)
-    
-    // 销毁现有图表实例
-    if (myChart.value) {
-      myChart.value.dispose()
-    }
-    
-    // 根据主题模式初始化图表
-    myChart.value = echarts.init(graphCanvas.value, isDarkMode.value ? 'dark' : undefined)
-    console.log('ECharts实例已创建，主题:', isDarkMode.value ? 'dark' : 'default')
-    
-    // 显示加载动画
-    myChart.value.showLoading()
-    loadingMessage.value = '正在加载数据...'
-
-    // 加载真实数据
-    await loadRealData()
-    
-  } catch (error) {
-    console.error('初始化图表失败:', error)
-    loadingMessage.value = '图表初始化失败'
-  }
-}
-
-// 从API加载真实数据
-const loadRealData = async (): Promise<void> => {
-  try {
-    console.log('开始从API加载真实数据')
-    loadingMessage.value = '正在从服务器获取数据...'
-    
-    // 调用真实的API接口
-    const graphData = await getDocKeywordGraph()
-    console.log('API数据加载成功:', graphData)
-    
-    // 保存原始数据用于筛选
-    originalGraphData.value = graphData
-    
-    // 隐藏加载动画
-    myChart.value?.hideLoading()
-
-    const option: EChartsOption = {
-      title: {
-        text: '',
-        textStyle: {
-          color: isDarkMode.value ? '#ffffff' : '#333333',
-          fontSize: 16
-        }
-      },
-      backgroundColor: isDarkMode.value ? '#1e293b' : '#ffffff',
-      animationDurationUpdate: 1500,
-      animationEasingUpdate: 'quinticInOut',
-      series: [
-        {
-          type: 'graph',
-          layout: 'force',
-          force: {
-            repulsion: 1000,
-            edgeLength: 100,
-            gravity: 0.1
-          },
-          data: graphData.nodes.map((node: Node) => {
-            return {
-              id: node.id,
-              name: node.label,
-              symbolSize: node.size || 20,
-              itemStyle: {
-                color: getNodeColor(node) // 使用新的颜色分配函数
-              },
-              category: node.id.startsWith('doc-') ? 0 : 1, // 文档和关键词分类
-              label: {
-                fontSize: 9,
-                color: isDarkMode.value ? '#ffffff' : '#333333'
-              }
-            };
-          }),
-          edges: graphData.edges.map((edge: Edge) => {
-            return {
-              source: edge.source,
-              target: edge.target,
-              lineStyle: {
-                width: 1,
-                opacity: 0.6
-              }
-            };
-          }),
-          categories: [
-            {
-              name: '文档',
-              itemStyle: {
-                color: '#5470c6'
-              }
-            },
-            {
-              name: '关键词',
-              itemStyle: {
-                color: '#91cc75' // 这里保留原来的颜色作为图例显示
-              }
-            }
-          ],
-          emphasis: {
-            focus: 'adjacency',
-            label: {
-              show: true, // 悬浮时显示标签
-              position: 'right',
-              fontSize: 12,
-              color: isDarkMode.value ? '#ffffff' : '#333333',
-              fontWeight: 'bold'
-            }
-          },
-          roam: true,
-          lineStyle: {
-            width: 1,
-            curveness: 0.1,
-            opacity: 0.6,
-            color: isDarkMode.value ? '#64748b' : '#94a3b8'
-          },
-          tooltip: {
-            show: true,
-            formatter: (params: any) => {
-              if (params.dataType === 'node') {
-                return `${params.data.name}<br/>ID: ${params.data.id}<br/>大小: ${params.data.symbolSize}`;
-              } else if (params.dataType === 'edge') {
-                return `${params.data.source} → ${params.data.target}`;
-              }
-              return '';
-            }
-          }
-        }
-      ]
-    }
-
-    console.log('设置图表配置')
-    myChart.value?.setOption(option, true)
-    chartLoaded.value = true
-    console.log('真实数据图表配置完成')
-    
-  } catch (error) {
-    console.error('API请求失败，使用备用数据:', error)
-    loadingMessage.value = 'API请求失败，正在加载备用数据...'
-    loadFallbackData()
-  }
-}
-
-// 加载备用数据
-const loadFallbackData = (): void => {
-  console.log('加载备用数据')
-  myChart.value?.hideLoading()
-  
-  // 模拟你的API数据格式的备用数据
-  const fallbackData: ApiGraphData = {
-    nodes: [
-      {
-        id: "doc-example-1",
-        label: "机器学习基础概念",
-        size: 30.0,
-        color: "#5470c6"
-      },
-      {
-        id: "kw-ml-1",
-        label: "机器学习",
-        size: 25.0,
-        color: "#91cc75"
-      },
-      {
-        id: "kw-supervised-1",
-        label: "监督学习",
-        size: 20.0,
-        color: "#91cc75"
-      },
-      {
-        id: "kw-unsupervised-1",
-        label: "无监督学习",
-        size: 20.0,
-        color: "#91cc75"
-      },
-      {
-        id: "doc-example-2",
-        label: "深度学习应用",
-        size: 28.0,
-        color: "#5470c6"
-      },
-      {
-        id: "kw-deep-learning",
-        label: "深度学习",
-        size: 22.0,
-        color: "#91cc75"
-      },
-      {
-        id: "kw-neural-network",
-        label: "神经网络",
-        size: 18.0,
-        color: "#91cc75"
-      }
-    ],
-    edges: [
-      { source: "doc-example-1", target: "kw-ml-1" },
-      { source: "doc-example-1", target: "kw-supervised-1" },
-      { source: "doc-example-1", target: "kw-unsupervised-1" },
-      { source: "doc-example-2", target: "kw-deep-learning" },
-      { source: "doc-example-2", target: "kw-neural-network" },
-      { source: "doc-example-2", target: "kw-ml-1" }
-    ]
-  }
-  
-  // 保存原始数据用于筛选
-  originalGraphData.value = fallbackData
-  
-  const option: EChartsOption = {
-    title: {
-      text: '文档-关键词知识图谱',
-      textStyle: {
-        color: isDarkMode.value ? '#ffffff' : '#333333',
-        fontSize: 16
-      }
-    },
-    backgroundColor: isDarkMode.value ? '#1e293b' : '#ffffff',
-    animationDurationUpdate: 1500,
-    animationEasingUpdate: 'quinticInOut',
-    series: [
-      {
-        type: 'graph',
-        layout: 'force',
-        force: {
-          repulsion: 800,
-          edgeLength: 80,
-          gravity: 0.1
-        },
-        data: fallbackData.nodes.map((node: Node) => {
-          return {
-            id: node.id,
-            name: node.label,
-            symbolSize: node.size,
-            itemStyle: {
-              color: getNodeColor(node) // 使用新的颜色分配函数
-            },
-            category: node.id.startsWith('doc-') ? 0 : 1,
-            label: {
-              show: false, // 默认不显示标签，悬浮时显示
-              fontSize: 10,
-              color: isDarkMode.value ? '#ffffff' : '#333333'
-            }
-          };
-        }),
-        edges: fallbackData.edges.map((edge: Edge) => {
-          return {
-            source: edge.source,
-            target: edge.target,
-            lineStyle: {
-              width: 1,
-              opacity: 0.6
-            }
-          };
-        }),
-        categories: [
-          {
-            name: '文档',
-            itemStyle: {
-              color: '#5470c6'
-            }
-          },
-          {
-            name: '关键词',
-            itemStyle: {
-              color: '#91cc75'
-            }
-          }
-        ],
-        emphasis: {
-          focus: 'adjacency',
-          label: {
-            show: true, // 悬浮时显示标签
-            position: 'right',
-            fontSize: 12,
-            color: isDarkMode.value ? '#ffffff' : '#333333',
-            fontWeight: 'bold'
-          }
-        },
-        roam: true,
-        lineStyle: {
-          width: 1,
-          curveness: 0.1,
-          opacity: 0.6,
-          color: isDarkMode.value ? '#64748b' : '#94a3b8'
-        },
-        tooltip: {
-          show: true,
-          formatter: (params: any) => {
-            if (params.dataType === 'node') {
-              return `${params.data.name}<br/>ID: ${params.data.id}<br/>大小: ${params.data.symbolSize}`;
-            } else if (params.dataType === 'edge') {
-              return `${params.data.source} → ${params.data.target}`;
-            }
-            return '';
-          }
-        }
-      }
-    ]
-  }
-
-  myChart.value?.setOption(option, true)
-  chartLoaded.value = true
-  console.log('备用数据加载完成')
-}
-
-// 刷新数据
-const refreshData = async (): Promise<void> => {
-  if (myChart.value) {
-    // 清除所有状态
-    nodeColorMap.clear()
-    communityNodeColors.value.clear()
-    pathHighlightNodes.value.clear()
-    pathHighlightEdges.value.clear()
-    communityResults.value = null
-    pathResults.value = null
+    console.error('异常检测失败:', error)
     anomalyResults.value = null
-    // 添加异常检测状态重置
     anomalyActive.value = false
-    communityActive.value = false
-    
-    myChart.value.showLoading()
-    loadingMessage.value = '正在刷新数据...'
-    chartLoaded.value = false
-    await loadRealData()
+    alert(`异常检测失败: ${error.message || '网络请求失败'}`)
+  } finally {
+    anomalyLoading.value = false
   }
 }
 
-// 处理窗口大小变化
-const handleResize = (): void => {
-  if (myChart.value) {
-    myChart.value.resize()
-  }
+// 刷新数据函数
+const refreshData = async (): Promise<void> => {
+  console.log('刷新图数据')
+  chartLoaded.value = false
+  loadingMessage.value = '正在刷新数据...'
+  
+  // 清除所有状态
+  anomalyResults.value = null
+  anomalyActive.value = false
+  communityResults.value = null
+  communityActive.value = false
+  communityNodeColors.value.clear()
+  pathResults.value = null
+  pathHighlightNodes.value.clear()
+  pathHighlightEdges.value.clear()
+  
+  await loadGraphData()
 }
 
 // 监听主题变化
-watch(isDarkMode, (newValue) => {
-  console.log('Query: 主题变化到', newValue ? 'dark' : 'light')
-  updateChartTheme()
-})
-
-// 修复：生命周期钩子中的事件监听器管理 - 简化版本
-let resizeHandler: (() => void) | null = null
-
-// 生命周期钩子
-onMounted(async () => {
-  console.log('Query组件已挂载，当前全局主题状态:', isDarkMode.value)
-  await nextTick()
-  await initChart()
-  
-  // 只保留必要的resize事件监听器
-  resizeHandler = () => {
-    if (myChart.value) {
-      myChart.value.resize()
-    }
+watch(isDarkMode, () => {
+  if (myChart.value) {
+    // 重新初始化图表以应用新主题
+    initChart()
   }
-  window.addEventListener('resize', resizeHandler)
 })
 
+// 监听实体类型变化，重新应用筛选
+watch(entityTypes, () => {
+  applyFilters()
+}, { deep: true })
+
+// 页面加载时初始化
+onMounted(async () => {
+  console.log('Query页面已挂载')
+  await nextTick()
+  await loadGraphData()
+})
+
+// 页面卸载时清理
 onUnmounted(() => {
-  console.log('Query组件正在卸载，清理资源...')
-  
-  // 销毁ECharts实例
   if (myChart.value) {
     myChart.value.dispose()
-    myChart.value = null
   }
-  
-  // 移除resize事件监听器
-  if (resizeHandler) {
-    window.removeEventListener('resize', resizeHandler)
-    resizeHandler = null
-  }
-  
-  // 清理所有状态
-  chartLoaded.value = false
-  nodeColorMap.clear()
-  communityNodeColors.value.clear()
-  pathHighlightNodes.value.clear()
-  pathHighlightEdges.value.clear()
-  communityResults.value = null
-  pathResults.value = null
-  anomalyResults.value = null
-  anomalyActive.value = false
-  communityActive.value = false
-  originalGraphData.value = null
 })
 </script>
 

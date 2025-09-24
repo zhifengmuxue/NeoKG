@@ -15,9 +15,31 @@ import {
   RobotOutlined
 } from '@ant-design/icons-vue'
 import { isDarkMode, toggleDarkMode, initTheme } from './stores/theme'
-import { isLoggedIn, userInfo, userDisplayName, userAvatar, logout, initUserState } from './stores/user'
 import { message } from 'ant-design-vue'
-import { authService } from './services/auth'
+
+// 直接导入而不是使用动态导入
+import { 
+  isLoggedIn, 
+  userInfo, 
+  userDisplayName, 
+  userAvatar, 
+  userAvatarSeed, 
+  logout, 
+  initUserState, 
+  updateAvatarSeed 
+} from './stores/user'
+
+import DicebearAvatar from './components/DicebearAvatar.vue'
+
+// 认证服务导入
+let authService = { logout: () => Promise.resolve() }
+try {
+  import('./services/auth').then(auth => {
+    authService = auth.authService
+  })
+} catch (error) {
+  console.error('认证服务导入失败:', error)
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -102,15 +124,19 @@ const handleMenuClick = (key: string): void => {
   }
 }
 
+// 处理头像点击 - 更换头像
+const handleAvatarClick = (newSeed: string) => {
+  updateAvatarSeed(newSeed)
+  message.success('头像已更换！')
+}
+
 // 登出处理
 const handleLogout = async () => {
   try {
-    // 调用后端登出接口
     await authService.logout()
   } catch (error) {
     console.error('登出接口调用失败:', error)
   } finally {
-    // 无论接口是否成功，都清除本地状态
     logout()
     message.success('已退出登录')
     router.push('/auth/login')
@@ -261,20 +287,35 @@ onMounted(() => {
             欢迎使用 NeoKG 管理平台
           </div>
           
-          <!-- 用户头像图标 - 仅显示图标，无下拉菜单 -->
+          <!-- 用户信息 -->
           <div class="user-info" :style="{ display: 'flex', alignItems: 'center', gap: '12px' }">
             <span :style="{ color: themeStyles.textColor, fontSize: '14px' }">
               {{ userDisplayName }}
             </span>
-            <a-avatar 
-              :size="36" 
-              :src="userAvatar" 
-              :style="{ backgroundColor: '#1890ff' }"
-            >
-              <template #icon>
-                <user-outlined />
-              </template>
-            </a-avatar>
+            
+            <!-- 使用 Dicebear 头像组件 -->
+            <a-tooltip title="点击更换头像" placement="bottomRight">
+              <dicebear-avatar
+                v-if="userAvatarSeed"
+                :seed="userAvatarSeed"
+                :size="36"
+                :avatar-style="'adventurer'"
+                :clickable="true"
+                shadow="0 2px 8px rgba(0, 0, 0, 0.15)"
+                @click="handleAvatarClick"
+              />
+              <!-- 兜底头像 -->
+              <a-avatar 
+                v-else
+                :size="36" 
+                :src="userAvatar" 
+                :style="{ backgroundColor: '#1890ff' }"
+              >
+                <template #icon>
+                  <user-outlined />
+                </template>
+              </a-avatar>
+            </a-tooltip>
           </div>
         </div>
       </a-layout-header>
@@ -319,7 +360,6 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 样式保持不变 */
 .sider-content {
   height: 100vh;
   display: flex;
@@ -384,7 +424,6 @@ onMounted(() => {
   gap: 12px;
 }
 
-/* 深度样式 */
 :deep(.ant-layout-sider-children) {
   height: 100vh;
   overflow: hidden;
