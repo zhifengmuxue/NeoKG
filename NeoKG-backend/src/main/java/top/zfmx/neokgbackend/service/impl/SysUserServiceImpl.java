@@ -41,7 +41,7 @@ public class SysUserServiceImpl
                 .oneOpt()
                 .orElseThrow(() -> new AuthException("用户名或密码错误"));
 
-        // 使用 jBCrypt 验证密码
+        // 使用 BCrypt 验证密码
         if (!BCrypt.checkpw(password, user.getPassword())) {
             throw new AuthException("用户名或密码错误");
         }

@@ -173,8 +173,7 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
         Map<Long, String> communityColors = new HashMap<>();
         int idx = 0;
         for (Long c : allCommunities) {
-            float hue = idx * 360f / allCommunities.size();
-            communityColors.put(c, hslToHex(hue, 0.7f, 0.5f)); // 转成 #RRGGBB
+            communityColors.put(c, "hsl(" + (idx * 360 / allCommunities.size()) + ", 70%, 50%)");
             idx++;
         }
 
@@ -213,7 +212,7 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
 
         Map<String, Object> graph = new HashMap<>();
         graph.put("nodes", nodes);
-        graph.put("edges", edges);
+//        graph.put("edges", edges);
 
         //  缓存
         long ttl = BASE_TTL + ThreadLocalRandom.current().nextInt(120);
@@ -442,26 +441,5 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
                 "nodes", nodes,
                 "edges", edges
         );
-    }
-
-    // HSL 转 Hex
-    private String hslToHex(float h, float s, float l) {
-        float c = (1 - Math.abs(2 * l - 1)) * s;
-        float x = c * (1 - Math.abs((h / 60) % 2 - 1));
-        float m = l - c / 2;
-
-        float r = 0, g = 0, b = 0;
-        if (0 <= h && h < 60) { r = c; g = x; b = 0; }
-        else if (60 <= h && h < 120) { r = x; g = c; b = 0; }
-        else if (120 <= h && h < 180) { r = 0; g = c; b = x; }
-        else if (180 <= h && h < 240) { r = 0; g = x; b = c; }
-        else if (240 <= h && h < 300) { r = x; g = 0; b = c; }
-        else if (300 <= h && h < 360) { r = c; g = 0; b = x; }
-
-        int R = Math.round((r + m) * 255);
-        int G = Math.round((g + m) * 255);
-        int B = Math.round((b + m) * 255);
-
-        return String.format("#%02X%02X%02X", R, G, B);
     }
 }
