@@ -75,6 +75,12 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
             documents = dataImportService.parseMarkdownToDocuments(file);
         } else if (filename.endsWith(".doc") || filename.endsWith(".docx") || filename.endsWith(".pdf")) {
             documents = dataImportService.parseWordToDocuments(file);
+        }else if(filename.endsWith(".json")) {
+            documents = dataImportService.parseJsonToDocuments(file);
+        }else if(filename.endsWith(".txt")) {
+            documents = dataImportService.parseTextToDocuments(file);
+        } else if(filename.endsWith(".xml")) {
+            documents = dataImportService.parseXmlToDocuments(file);
         } else {
             throw new RuntimeException("不支持的文件类型");
         }

@@ -27,68 +27,70 @@ public class DataImportServiceImpl implements DataImportService {
     @Resource
     private ObjectMapper objectMapper;
 
-    @Override
-    public List<Document> parseCsvToDocuments(MultipartFile file) throws IOException {
-        // 读取 CSV 内容作为纯文本
+    /**
+     * 公共方法：AI 转换 JSON -> Document 列表
+     */
+    private List<Document> convertToDocuments(String text) throws IOException {
+        String json = aiService.explain(text);
+        if (json.startsWith("```")) {
+            json = json.replaceAll("```(json)?", "").trim();
+        }
+        return objectMapper.readValue(json, new TypeReference<>() {});
+    }
+
+    /**
+     * 公共方法：读取 MultipartFile 中的文本
+     */
+    private String readFileAsString(MultipartFile file, boolean skipFirstLine) throws IOException {
         StringBuilder textBuilder = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
             String line;
             boolean firstLine = true;
             while ((line = reader.readLine()) != null) {
-                if (firstLine) { firstLine = false; continue; }
+                if (skipFirstLine && firstLine) {
+                    firstLine = false;
+                    continue;
+                }
                 textBuilder.append(line).append("\n");
             }
         }
-        // 调用 AiService 获取 JSON 文本
-        String json = aiService.explain(textBuilder.toString());
+        return textBuilder.toString();
+    }
 
-        if (json.startsWith("```")) {
-            json = json.replaceAll("```(json)?", "").trim();
-        }
-
-        // 解析 JSON 为 Document 对象列表
-        return objectMapper.readValue(json, new TypeReference<>() {
-        });
+    @Override
+    public List<Document> parseCsvToDocuments(MultipartFile file) throws IOException {
+        String text = readFileAsString(file, true); // 跳过第一行表头
+        return convertToDocuments(text);
     }
 
     @Override
     public List<Document> parseMarkdownToDocuments(MultipartFile file) throws IOException {
-        // 读取 Markdown 内容
-        StringBuilder textBuilder = new StringBuilder();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                textBuilder.append(line).append("\n");
-            }
-        }
-
-        // 调用 AiService 获取 JSON 文本
-        String json = aiService.explain(textBuilder.toString());
-
-        if (json.startsWith("```")) {
-            json = json.replaceAll("```(json)?", "").trim();
-        }
-
-        // 解析 JSON 为 Document 对象列表
-        return objectMapper.readValue(json, new TypeReference<>() {
-        });
+        String text = readFileAsString(file, false);
+        return convertToDocuments(text);
     }
 
     @Override
     public List<Document> parseWordToDocuments(MultipartFile file) throws IOException, TikaException {
-        // 使用 Apache Tika 提取 Word 文本
         org.apache.tika.Tika tika = new org.apache.tika.Tika();
         String text = tika.parseToString(file.getInputStream());
+        return convertToDocuments(text);
+    }
 
-        // 调用 AiService 获取 JSON 文本
-        String json = aiService.explain(text);
+    @Override
+    public List<Document> parseJsonToDocuments(MultipartFile file) throws IOException {
+        String text = readFileAsString(file, false);
+        return convertToDocuments(text);
+    }
 
-        if (json.startsWith("```")) {
-            json = json.replaceAll("```(json)?", "").trim();
-        }
+    @Override
+    public List<Document> parseXmlToDocuments(MultipartFile file) throws IOException {
+        String text = readFileAsString(file, false);
+        return convertToDocuments(text);
+    }
 
-        // 解析 JSON 为 Document 对象列表
-        return objectMapper.readValue(json, new TypeReference<>() {
-        });
+    @Override
+    public List<Document> parseTextToDocuments(MultipartFile file) throws IOException {
+        String text = readFileAsString(file, false);
+        return convertToDocuments(text);
     }
 }

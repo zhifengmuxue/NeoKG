@@ -19,4 +19,10 @@ public interface DataImportService {
     List<Document> parseCsvToDocuments(MultipartFile file) throws IOException, CsvValidationException;
     List<Document> parseMarkdownToDocuments(MultipartFile file) throws IOException;
     List<Document> parseWordToDocuments(MultipartFile file) throws IOException, TikaException;
+
+    List<Document> parseJsonToDocuments(MultipartFile file) throws IOException;
+
+    List<Document> parseXmlToDocuments(MultipartFile file) throws IOException;
+
+    List<Document> parseTextToDocuments(MultipartFile file) throws IOException;
 }

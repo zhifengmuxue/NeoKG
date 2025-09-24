@@ -61,15 +61,30 @@ public class GraphRepositoryImpl implements GraphRepository {
         String endLabel = endType.equalsIgnoreCase("DOCUMENT") ? "DocumentNode" : "KeywordNode";
         String startProp = startType.equalsIgnoreCase("DOCUMENT") ? "docId" : "keywordId";
         String endProp = endType.equalsIgnoreCase("DOCUMENT") ? "docId" : "keywordId";
-
+        System.out.println(startLabel + " " + endLabel + " " + startProp + " " + endProp);
+        System.out.println(startId + " " + endId);
         String cypher;
 
-        int maxHops = 5; // 限制最长跳数
+        int maxHops = 100;
         cypher = String.format("""
-                MATCH path = shortestPath((start:%s {%s: $startId})-[:HAS_KEYWORD*1..%d]-(end:%s {%s: $endId}))
-                RETURN [n IN nodes(path) | {id: coalesce(n.docId, n.keywordId), name: coalesce(n.title, n.name), type: CASE WHEN n:DocumentNode THEN 'DOCUMENT' ELSE 'KEYWORD' END}] AS pathNodes,
-                       [r IN relationships(path) | {start: id(startNode(r)), end: id(endNode(r)), type: type(r)}] AS pathRels
-                """, startLabel, startProp, maxHops, endLabel, endProp);
+            MATCH p = (start:%s {%s: $startId})-[:HAS_KEYWORD*1..%d]-(end:%s {%s: $endId})
+            WHERE id(start) <> id(end)
+            RETURN
+                [n IN nodes(p) | {
+                    id: coalesce(n.docId, n.keywordId),
+                    name: coalesce(n.title, n.name),
+                    type: CASE WHEN n:DocumentNode THEN 'DOCUMENT' ELSE 'KEYWORD' END
+                }] AS pathNodes,
+                [r IN relationships(p) | {
+                    start: coalesce(startNode(r).docId, startNode(r).keywordId),
+                    end: coalesce(endNode(r).docId, endNode(r).keywordId),
+                    type: type(r)
+                }] AS pathRels
+            ORDER BY length(p) ASC
+            LIMIT 1
+        """, startLabel, startProp, maxHops, endLabel, endProp);
+
+
 
         return neo4jClient.query(cypher)
                 .bind(startId).to("startId")

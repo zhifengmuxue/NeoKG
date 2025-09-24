@@ -8,6 +8,9 @@ public enum DocType {
     PDF,
     WORD,
     MARKDOWN,
+    TEXT,
+    JSON,
+    XML,
     CSV;
 
     public static DocType fromFilename(String filename) {
@@ -19,7 +22,13 @@ public enum DocType {
             return WORD;
         } else if (filename.endsWith(".pdf")) {
             return PDF;
-        } else {
+        }else if (filename.endsWith(".txt")) {
+            return TEXT;
+        }else if (filename.endsWith(".json")) {
+            return JSON;
+        }else if (filename.endsWith(".xml")) {
+            return XML;
+        }else {
             throw new IllegalArgumentException("不支持的文件类型: " + filename);
         }
     }
