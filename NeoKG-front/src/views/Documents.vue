@@ -47,9 +47,10 @@
               <a-select-option value="CSV">CSV</a-select-option>
               <a-select-option value="TXT">TXT</a-select-option>
               <a-select-option value="MD">Markdown</a-select-option>
-              <a-select-option value="MARKDOWN">Markdown</a-select-option>
               <a-select-option value="PDF">PDF</a-select-option>
               <a-select-option value="DOCX">DOCX</a-select-option>
+              <a-select-option value="JSON">JSON</a-select-option>
+              <a-select-option value="XML">XML</a-select-option>
             </a-select>
           </a-col>
           <a-col :span="4">
@@ -246,24 +247,11 @@
             <a-select-option value="CSV">CSV</a-select-option>
             <a-select-option value="TXT">TXT</a-select-option>
             <a-select-option value="MD">Markdown</a-select-option>
-            <a-select-option value="MARKDOWN">Markdown</a-select-option>
             <a-select-option value="PDF">PDF</a-select-option>
             <a-select-option value="DOCX">DOCX</a-select-option>
             <a-select-option value="JSON">JSON</a-select-option>
             <a-select-option value="XML">XML</a-select-option>
           </a-select>
-        </a-form-item>
-
-        <a-form-item label="关键词" name="keywords">
-          <a-input 
-            v-model:value="form.keywords" 
-            placeholder="请输入关键词（可选）"
-            :style="{ 
-              backgroundColor: themeStyles.inputBg,
-              borderColor: themeStyles.borderColor,
-              color: themeStyles.textColor
-            }"
-          />
         </a-form-item>
 
         <a-form-item label="文档内容" name="content">

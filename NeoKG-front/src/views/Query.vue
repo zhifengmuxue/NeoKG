@@ -879,7 +879,7 @@ const runCommunityDetection = async (): Promise<void> => {
   }
 }
 
-// 修复路径搜索函数 - 简化错误检查逻辑
+// 修复路径搜索函数 - 添加类型参数
 const runPathSearch = async (): Promise<void> => {
   pathLoading.value = true
   try {
@@ -911,11 +911,15 @@ const runPathSearch = async (): Promise<void> => {
     
     console.log('提取的数字ID:', startNumericId, '->', endNumericId)
     
+    // 修复：添加所有必要的参数，包括类型参数
     const params = new URLSearchParams({
+      startType: pathSearch.value.startType,  // 添加起始节点类型
       startId: startNumericId,
+      endType: pathSearch.value.endType,      // 添加目标节点类型
       endId: endNumericId
     })
     
+    console.log('请求参数:', params.toString())
     console.log('请求URL:', `${PATH_SEARCH_API_URL}?${params.toString()}`)
     
     const response = await fetch(`${PATH_SEARCH_API_URL}?${params.toString()}`, {
