@@ -96,6 +96,7 @@ public class GraphRepositoryImpl implements GraphRepository {
 
     @Override
     public void ensureGraphExists() {
+        // 检查 myGraph 是否存在
         String existsQuery = "CALL gds.graph.exists('myGraph') YIELD exists";
         Boolean exists = neo4jClient.query(existsQuery)
                 .fetchAs(Boolean.class)
@@ -103,16 +104,22 @@ public class GraphRepositoryImpl implements GraphRepository {
                 .one()
                 .orElse(false);
 
-        if (!exists) {
-            String projectQuery = """
-            CALL gds.graph.project(
-              'myGraph',
-              ['DocumentNode', 'KeywordNode'],
-              { HAS_KEYWORD: { orientation: 'UNDIRECTED' } }
-            )
-        """;
-            neo4jClient.query(projectQuery).run();
+        if (exists) {
+            // 删除旧的 myGraph 投影
+            String dropQuery = "CALL gds.graph.drop('myGraph', false)";
+            neo4jClient.query(dropQuery).run();
         }
+
+        // 重新创建投影图
+        String projectQuery = """
+        CALL gds.graph.project(
+          'myGraph',
+          ['DocumentNode', 'KeywordNode'],
+          { HAS_KEYWORD: { orientation: 'UNDIRECTED' } }
+        )
+        """;
+        neo4jClient.query(projectQuery).run();
     }
+
 
 }

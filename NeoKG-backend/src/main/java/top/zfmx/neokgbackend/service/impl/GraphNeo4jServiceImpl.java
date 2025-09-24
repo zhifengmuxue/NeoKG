@@ -178,7 +178,6 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
         }
 
         List<GraphNode> nodes = new ArrayList<>();
-        List<GraphEdge> edges = new ArrayList<>();
         Set<String> nodeIds = new HashSet<>();
 
         for (Map<String, Object> row : results) {
@@ -204,15 +203,9 @@ public class GraphNeo4jServiceImpl implements GraphNeo4jService {
             nodes.add(new GraphNode(nodeId, label, 20.0, color));
         }
 
-        //  关系查询
-        List<Map<String, Object>> rels = graphRepository.findDocKeywordRelations();
-        for (Map<String, Object> rel : rels) {
-            edges.add(new GraphEdge(String.valueOf(rel.get("sourceId")), String.valueOf(rel.get("targetId"))));
-        }
 
         Map<String, Object> graph = new HashMap<>();
         graph.put("nodes", nodes);
-//        graph.put("edges", edges);
 
         //  缓存
         long ttl = BASE_TTL + ThreadLocalRandom.current().nextInt(120);
