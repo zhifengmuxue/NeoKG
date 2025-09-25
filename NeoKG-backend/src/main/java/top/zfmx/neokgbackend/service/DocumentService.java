@@ -34,4 +34,8 @@ public interface DocumentService
     List<Map<String, Object>> getStatsLastWeek();
 
     void refreshStatsLastWeek();
+
+    boolean removeWithKeywordById(Long id);
+
+    boolean removeBatchWithKeywordsByIds(List<Long> ids);
 }

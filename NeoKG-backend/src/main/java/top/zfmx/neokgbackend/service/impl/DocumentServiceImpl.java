@@ -233,4 +233,40 @@ public class DocumentServiceImpl extends ServiceImpl<DocumentMapper, Document> i
         stringRedisTemplate.opsForValue().set(CACHE_KEY, gson.toJson(stats), Duration.ofHours(1));
     }
 
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean removeWithKeywordById(Long id) {
+        // 1. 通过documentRef 查找 所有关联的 keywordId
+        List<Long> keywordIds = documentRefMapper.selectList(
+                new QueryWrapper<DocumentRef>().eq("document_id", id)
+        ).stream().map(DocumentRef::getKeywordId).toList();
+
+        // 2. 删除 Document
+        this.removeById(id);
+
+        // 3. 删除 对应的 keyword
+        if (!keywordIds.isEmpty()) {
+            keywordMapper.deleteByIds(keywordIds);
+        }
+        return true;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public boolean removeBatchWithKeywordsByIds(List<Long> ids) {
+        // 1. 通过documentRef 查找 所有关联的 keywordId
+        List<Long> keywordIds = documentRefMapper.selectList(
+                new QueryWrapper<DocumentRef>().in("document_id", ids)
+        ).stream().map(DocumentRef::getKeywordId).toList();
+
+        // 2. 删除 Document
+        this.removeByIds(ids);
+
+        // 3. 删除 对应的 keyword
+        if (!keywordIds.isEmpty()) {
+            keywordMapper.deleteByIds(keywordIds);
+        }
+        return false;
+    }
+
 }

@@ -12,6 +12,7 @@ import top.zfmx.neokgbackend.pojo.entity.Keyword;
 import top.zfmx.neokgbackend.pojo.response.Result;
 import top.zfmx.neokgbackend.service.DimReduceService;
 import top.zfmx.neokgbackend.service.DocumentService;
+import top.zfmx.neokgbackend.service.GraphNeo4jService;
 
 import java.io.IOException;
 import java.util.List;
@@ -30,6 +31,9 @@ public class DocumentController {
 
     @Resource
     private DocumentService documentService;
+
+    @Resource
+    private GraphNeo4jService graphNeo4jService;
 
     /**
      * 上传文件，解析生成 Document 和 Keyword，持久化到数据库
@@ -72,6 +76,8 @@ public class DocumentController {
     @DeleteMapping("/{id}")
     public Result<Boolean> deleteKeyword(@PathVariable Long id) {
         boolean removed = documentService.removeById(id);
+        List<Document> documents = documentService.listDocumentsWithKeywords();
+        graphNeo4jService.saveDocumentsToNeo4j(documents,true);
         return Result.ok(removed);
     }
     @PutMapping
