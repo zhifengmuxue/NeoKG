@@ -216,6 +216,24 @@
                   </div>
                 </div>
               </a-form-item>
+              
+              <a-form-item label="提取方法">
+                <template #label>
+                  <span :style="{ color: isDark ? '#b3b3b3' : '#666' }">提取方法</span>
+                </template>
+                <a-select 
+                  v-model:value="uploadConfig.extractionMethod" 
+                  :style="getSelectStyle()"
+                  placeholder="请选择提取方法"
+                >
+                  <a-select-option value="LLM">LLM</a-select-option>
+                </a-select>
+                <div :style="{ color: isDark ? '#b3b3b3' : '#999', fontSize: '12px', marginTop: '8px' }">
+                  <div :style="{ color: isDark ? '#1890ff' : '#1890ff' }">
+                    💡 LLM：使用大型语言模型进行智能文本提取和分析
+                  </div>
+                </div>
+              </a-form-item>
             </a-form>
           </a-card>
         </a-col>
@@ -375,7 +393,8 @@ const uploadConfig = ref({
   targetGraph: 'main',
   updateMode: 'incremental',
   threshold: 0.8,
-  matchingMethods: ['stringMatch', 'semanticMatch']
+  matchingMethods: ['stringMatch', 'semanticMatch'],
+  extractionMethod: 'LLM' // 新增提取方法配置
 })
 
 const uploadStats = ref({
@@ -701,11 +720,13 @@ const uploadSingleFile = async (fileObj, index) => {
     formData.append('threshold', uploadConfig.value.threshold.toString())
     formData.append('updateMode', uploadConfig.value.updateMode)
     formData.append('matchingMethods', JSON.stringify(uploadConfig.value.matchingMethods))
+    formData.append('extractionMethod', uploadConfig.value.extractionMethod) // 新增提取方法参数
     
     console.log('调用后端API上传文件:', fileObj.name, '配置:', {
       threshold: uploadConfig.value.threshold,
       updateMode: uploadConfig.value.updateMode,
-      matchingMethods: uploadConfig.value.matchingMethods
+      matchingMethods: uploadConfig.value.matchingMethods,
+      extractionMethod: uploadConfig.value.extractionMethod
     })
     
     // 调用后端API
@@ -744,7 +765,8 @@ const uploadSingleFile = async (fileObj, index) => {
         documents: documents,
         threshold: uploadConfig.value.threshold,
         updateMode: uploadConfig.value.updateMode,
-        matchingMethods: uploadConfig.value.matchingMethods
+        matchingMethods: uploadConfig.value.matchingMethods,
+        extractionMethod: uploadConfig.value.extractionMethod // 新增历史记录字段
       })
       
       console.log(`${fileObj.name} 上传成功，解析出 ${documents.length} 个文档片段`)

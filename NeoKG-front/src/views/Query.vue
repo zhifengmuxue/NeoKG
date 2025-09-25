@@ -139,19 +139,12 @@
                   <option value="KEYWORD">关键词</option>
                   <option value="DOCUMENT">文档</option>
                 </select>
-                <select 
+                <input 
                   v-model="pathSearch.startKeyword"
-                  class="path-select"
-                >
-                  <option value="">{{ pathSearch.startType === 'KEYWORD' ? '选择起始关键词' : '选择起始文档' }}</option>
-                  <option 
-                    v-for="node in getAvailableNodes(pathSearch.startType)" 
-                    :key="node.id" 
-                    :value="node.label"
-                  >
-                    {{ node.label }}
-                  </option>
-                </select>
+                  class="path-input"
+                  type="text"
+                  :placeholder="pathSearch.startType === 'KEYWORD' ? '输入起始关键词' : '输入起始文档名'"
+                />
               </div>
               
               <!-- 目标节点选择 -->
@@ -161,19 +154,12 @@
                   <option value="KEYWORD">关键词</option>
                   <option value="DOCUMENT">文档</option>
                 </select>
-                <select 
+                <input 
                   v-model="pathSearch.endKeyword"
-                  class="path-select"
-                >
-                  <option value="">{{ pathSearch.endType === 'KEYWORD' ? '选择目标关键词' : '选择目标文档' }}</option>
-                  <option 
-                    v-for="node in getAvailableNodes(pathSearch.endType)" 
-                    :key="node.id" 
-                    :value="node.label"
-                  >
-                    {{ node.label }}
-                  </option>
-                </select>
+                  class="path-input"
+                  type="text"
+                  :placeholder="pathSearch.endType === 'KEYWORD' ? '输入目标关键词' : '输入目标文档名'"
+                />
               </div>
             </div>
             
@@ -879,7 +865,7 @@ const runCommunityDetection = async (): Promise<void> => {
   }
 }
 
-// 修复路径搜索函数 - 添加类型参数
+// 修改路径搜索函数，改为根据输入的名称进行模糊匹配搜索
 const runPathSearch = async (): Promise<void> => {
   pathLoading.value = true
   try {
@@ -887,15 +873,17 @@ const runPathSearch = async (): Promise<void> => {
     console.log('起始节点:', pathSearch.value.startKeyword, '类型:', pathSearch.value.startType)
     console.log('目标节点:', pathSearch.value.endKeyword, '类型:', pathSearch.value.endType)
     
-    // 查找节点
+    // 查找节点 - 支持模糊匹配
     const startNode = originalGraphData.value?.nodes.find(node => {
       const prefix = pathSearch.value.startType === 'KEYWORD' ? 'kw-' : 'doc-'
-      return node.id.startsWith(prefix) && node.label === pathSearch.value.startKeyword
+      return node.id.startsWith(prefix) && 
+             node.label.toLowerCase().includes(pathSearch.value.startKeyword.toLowerCase())
     })
     
     const endNode = originalGraphData.value?.nodes.find(node => {
       const prefix = pathSearch.value.endType === 'KEYWORD' ? 'kw-' : 'doc-'
-      return node.id.startsWith(prefix) && node.label === pathSearch.value.endKeyword
+      return node.id.startsWith(prefix) && 
+             node.label.toLowerCase().includes(pathSearch.value.endKeyword.toLowerCase())
     })
     
     if (!startNode || !endNode) {
@@ -1893,5 +1881,42 @@ input[type="checkbox"] {
   background: #334155;
   border-color: #475569;
   color: #e2e8f0;
+}
+
+/* 新增输入框样式，复用下拉框的样式 */
+.path-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  font-size: 0.75rem;
+  background: white;
+  color: inherit;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.path-input:focus {
+  outline: none;
+  border-color: #8b5cf6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+}
+
+.path-input::placeholder {
+  color: #94a3b8;
+}
+
+.dark-mode .path-input {
+  background: #475569 !important;
+  border-color: #64748b !important;
+  color: #e2e8f0 !important;
+}
+
+.dark-mode .path-input:focus {
+  border-color: #a78bfa !important;
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, 0.1) !important;
+}
+
+.dark-mode .path-input::placeholder {
+  color: #64748b !important;
 }
 </style>
