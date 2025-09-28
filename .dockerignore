@@ -1,0 +1,11 @@
+# Docker 辅助文件（若不需要打进镜像）
+docker/
+
+# 前端不需要的体积
+NeoKG-front/node_modules
+NeoKG-front/dist
+NeoKG-front/.vscode
+
+# 后端不需要的体积
+NeoKG-backend/target
+NeoKG-backend/.mvn/wrapper/.cache

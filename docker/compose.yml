@@ -1,0 +1,61 @@
+name: NeoKG-prod
+
+services:
+
+  web:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    container_name: NeoKG-web
+    depends_on:
+      - postgres
+      - neo4j
+      - redis
+    env_file:
+      - ./.env
+    ports:
+      - "8080:8080"
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: NeoKG-postgres
+    environment:
+      POSTGRES_DB: NeoKG
+      POSTGRES_USER: NeoKG
+      POSTGRES_PASSWORD: NeoKG
+    volumes:
+      - NeoKG-postgres-data:/var/lib/postgresql/data
+      - ./base.sql:/docker-entrypoint-initdb.d/base.sql
+
+  neo4j:
+    image: neo4j:5.11.0-enterprise
+    container_name: NeoKG-neo4j
+    environment:
+      NEO4J_AUTH: neo4j/neo4j123
+      NEO4JLABS_PLUGINS: '["apoc","graph-data-science"]'
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.*,gds.*"
+      NEO4J_dbms_security_procedures_allowlist: "apoc.*,gds.*"
+      NEO4J_ACCEPT_LICENSE_AGREEMENT: eval
+    volumes:
+      - NeoKG-neo4j-data:/data
+      - NeoKG-neo4j-import:/import
+
+  redis:
+    image: redis:7-alpine
+    container_name: NeoKG-redis
+    volumes:
+      - NeoKG-redis-data:/data
+    command: redis-server --save 60 1 --loglevel warning
+
+
+volumes:
+  NeoKG-postgres-data:
+    driver: local
+  NeoKG-neo4j-data:
+    driver: local
+  NeoKG-neo4j-import:
+    driver: local
+  NeoKG-redis-data:
+    driver: local
+
+
