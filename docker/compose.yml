@@ -18,7 +18,7 @@ services:
 
   postgres:
     image: pgvector/pgvector:pg17
-    container_name: NeoKG-postgres
+    container_name: NeoKG-postgres-prod
     environment:
       POSTGRES_DB: NeoKG
       POSTGRES_USER: NeoKG
@@ -29,7 +29,7 @@ services:
 
   neo4j:
     image: neo4j:5.11.0-enterprise
-    container_name: NeoKG-neo4j
+    container_name: NeoKG-neo4j-prod
     environment:
       NEO4J_AUTH: neo4j/neo4j123
       NEO4JLABS_PLUGINS: '["apoc","graph-data-science"]'
@@ -42,7 +42,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: NeoKG-redis
+    container_name: NeoKG-redis-prod
     volumes:
       - NeoKG-redis-data:/data
     command: redis-server --save 60 1 --loglevel warning
